@@ -42,9 +42,6 @@ header {
   color: white;
   padding: 2rem 0;
   box-shadow: var(--shadow-lg);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
 }
 
 .header-content {
@@ -60,6 +57,23 @@ header {
   gap: 1rem;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.logo-title-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+}
+
+.logo-title-link:hover {
+  transform: translateY(-2px);
+  text-decoration: none;
+  color: inherit;
 }
 
 .site-logo {
