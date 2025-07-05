@@ -72,13 +72,18 @@
         {% for achievement in reviewer.achievements %}
         <div class="achievement-badge achievement-{{ achievement.type.split('_')[1] }}">
           <div class="badge-icon">
-            {% if 'top_1' in achievement.type or 'top_2' in achievement.type or 'top_3' in achievement.type %}
+            {% if achievement.type in ['overall_top_1', 'overall_top_2', 'overall_top_3'] or
+                  achievement.type.startswith('cycle_top_1_') or
+                  achievement.type.startswith('cycle_top_2_') or
+                  achievement.type.startswith('cycle_top_3_') %}
               🥇
-            {% elif 'top_5' in achievement.type %}
-              🥇
-            {% elif 'top_10' in achievement.type or 'top_20' in achievement.type %}
+            {% elif achievement.type in ['overall_top_5', 'overall_top_10', 'overall_top_20'] or
+                    achievement.type.startswith('cycle_top_5_') or
+                    achievement.type.startswith('cycle_top_10_') or
+                    achievement.type.startswith('cycle_top_20_') %}
               🥈
-            {% elif 'top_50' in achievement.type %}
+            {% elif achievement.type == 'overall_top_50' or
+                    achievement.type.startswith('cycle_top_50_') %}
               🥉
             {% endif %}
           </div>
