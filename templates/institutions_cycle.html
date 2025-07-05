@@ -86,10 +86,22 @@
 <script>
 const cycle = '{{ cycle_id }}';
 
+// Load institution database to get URL-safe IDs
+let institutionIdMap = {};
+
+// Function to get URL-safe institution ID 
+function getInstitutionUrl(institutionName) {
+  return institutionIdMap[institutionName] || null;
+}
+
 // Fetch and display institution data
-fetch(`/data/raw/${cycle}.json`)
-  .then(r => r.json())
-  .then(data => {
+Promise.all([
+  fetch(`/data/raw/${cycle}.json`).then(r => r.json()),
+  fetch('/data/institution_mappings.json').then(r => r.json()).catch(() => ({}))
+])
+  .then(([data, institutionMappings]) => {
+    // Build institution ID mapping
+    institutionIdMap = institutionMappings;
     // Convert string values to numbers
     const processedData = data.map(reviewer => ({
       ...reviewer,
@@ -210,11 +222,17 @@ fetch(`/data/raw/${cycle}.json`)
     const tbody = document.getElementById('institutions-body');
     tbody.innerHTML = institutionData.slice(0, 50).map((inst, index) => {
       const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+      const institutionUrl = getInstitutionUrl(inst.institution);
+      
+      // Create name cell with or without link based on institution URL availability
+      const nameCell = institutionUrl 
+        ? `<strong><a href="/institution/${institutionUrl}/" class="institution-link">${inst.institution}</a></strong>`
+        : `<strong>${inst.institution}</strong>`;
       
       return `
         <tr class="animate-fade-in" style="animation-delay: ${Math.min(index * 0.02, 0.5)}s">
           <td><span class="rank-badge ${rankClass}">${index + 1}</span></td>
-          <td><strong>${inst.institution}</strong></td>
+          <td>${nameCell}</td>
           <td>${inst.reviewer_count || '-'}</td>
           <td>${inst.reviewed || '-'}</td>
           <td><strong>${inst.recognized || '-'}</strong></td>

@@ -1,81 +1,74 @@
 {% extends "base.html" %}
 
-{% block title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
+{% block title %}{{ institution.name }} - Institution Profile - ARR Great Reviewers{% endblock %}
 
-{% block description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 
-{% block keywords %}{{ reviewer.name }}, {{ reviewer.institution }}, ACL Rolling Review, peer reviewer profile, academic reviewer, NLP reviewer, computational linguistics, great reviews{% endblock %}
+{% block keywords %}{{ institution.name }}, ACL Rolling Review, institutional rankings, peer review excellence, academic institution, NLP research, computational linguistics{% endblock %}
 
-{% block og_title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
-{% block og_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
-{% block og_type %}profile{% endblock %}
+{% block og_title %}{{ institution.name }} - Institution Profile - ARR Great Reviewers{% endblock %}
+{% block og_description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
+{% block og_type %}organization{% endblock %}
 
-{% block twitter_title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
-{% block twitter_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block twitter_title %}{{ institution.name }} - Institution Profile - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 
-{% block schema_type %}Person{% endblock %}
-{% block schema_name %}{{ reviewer.name }}{% endblock %}
-{% block schema_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block schema_type %}Organization{% endblock %}
+{% block schema_name %}{{ institution.name }}{% endblock %}
+{% block schema_description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 {% block schema_additional %},
-    "givenName": "{{ reviewer.name.split(' ')[0] if reviewer.name }}",
-    "familyName": "{{ reviewer.name.split(' ')[-1] if reviewer.name and reviewer.name.split(' ')|length > 1 }}",
-    "affiliation": {
-      "@type": "Organization",
-      "name": "{{ reviewer.institution }}"
-    },
     "knowsAbout": ["Peer Review", "Academic Publishing", "Natural Language Processing", "Computational Linguistics"],
-    "hasOccupation": {
-      "@type": "Occupation",
-      "name": "Academic Reviewer"
-    }{% if reviewer.openreview_id %},
-    "sameAs": "https://openreview.net/profile?id={{ reviewer.openreview_id }}"{% endif %}{% endblock %}
+    "memberOf": {
+      "@type": "EducationalOrganization",
+      "name": "Academic Research Community"
+    }{% endblock %}
 
 {% block content %}
 <div class="container">
-  <div class="reviewer-profile">
+  <div class="institution-profile">
     <!-- Profile Header -->
     <div class="profile-header">
       <div class="profile-info">
-        <h1 class="reviewer-name">{{ reviewer.name }}</h1>
-        <p class="institution">
-          {% if reviewer.institution_url_safe_id %}
-          <a href="/institution/{{ reviewer.institution_url_safe_id }}/" class="institution-link">{{ reviewer.institution }}</a>
-          {% else %}
-          {{ reviewer.institution }}
-          {% endif %}
-        </p>
-        {% if reviewer.openreview_id %}
-        <p class="openreview-link">
-          <a href="https://openreview.net/profile?id={{ reviewer.openreview_id }}" target="_blank" rel="noopener noreferrer">
-            View OpenReview Profile
-          </a>
-        </p>
+        <h1 class="institution-name">{{ institution.name }}</h1>
+        {% if institution.name_variations and institution.name_variations|length > 1 %}
+        <div class="name-variations">
+          <span class="variations-label">Also known as:</span>
+          {% for variation in institution.name_variations %}
+            {% if variation != institution.name %}
+              <span class="variation-name">{{ variation }}</span>{% if not loop.last %}, {% endif %}
+            {% endif %}
+          {% endfor %}
+        </div>
         {% endif %}
       </div>
       
       <!-- Overall Stats -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-number">{{ reviewer.total_recognized }}</div>
+          <div class="stat-number">{{ institution.total_recognized }}</div>
           <div class="stat-label">Great Reviews</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number">{{ reviewer.total_reviewed }}</div>
+          <div class="stat-number">{{ institution.total_reviewed }}</div>
           <div class="stat-label">Total Reviews</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number">{{ "%.1f"|format(reviewer.recognition_rate * 100) }}%</div>
+          <div class="stat-number">{{ institution.total_reviewers }}</div>
+          <div class="stat-label">Active Reviewers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ "%.1f"|format(institution.recognition_rate * 100) }}%</div>
           <div class="stat-label">Recognition Rate</div>
         </div>
       </div>
     </div>
 
     <!-- Achievements Section -->
-    {% if reviewer.achievements %}
+    {% if institution.achievements %}
     <div class="achievements-section">
-      <h2>Achievements</h2>
+      <h2>Institutional Achievements</h2>
       <div class="achievements-grid">
-        {% for achievement in reviewer.achievements %}
+        {% for achievement in institution.achievements %}
         <div class="achievement-badge achievement-{{ achievement.type.split('_')[1] }}">
           <div class="badge-icon">
             {% if achievement.type in ['overall_top_1', 'overall_top_2', 'overall_top_3'] or
@@ -105,16 +98,47 @@
     </div>
     {% endif %}
 
+    <!-- Top Reviewers Section -->
+    {% if institution.top_reviewers %}
+    <div class="top-reviewers-section">
+      <h2>Top Reviewers</h2>
+      <div class="reviewers-grid">
+        {% for reviewer in institution.top_reviewers[:6] %}
+        <div class="reviewer-card">
+          <div class="reviewer-info">
+            {% set reviewer_url = reviewer.openreview_id.replace('~', '') if reviewer.openreview_id else none %}
+            {% if reviewer_url %}
+            <h3><a href="/reviewer/{{ reviewer_url }}/" class="reviewer-link">{{ reviewer.name }}</a></h3>
+            {% else %}
+            <h3>{{ reviewer.name }}</h3>
+            {% endif %}
+            <div class="reviewer-stats">
+              <span class="stat">{{ reviewer.total_recognized }} great reviews</span>
+              <span class="stat">{{ "%.1f"|format(reviewer.recognition_rate * 100) }}% rate</span>
+            </div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ reviewer.recognition_rate * 100 }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if institution.top_reviewers|length > 6 %}
+      <p class="more-reviewers">... and {{ institution.total_reviewers - 6 }} more reviewers</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Cycle Performance -->
-    {% if reviewer.cycles %}
+    {% if institution.cycles %}
     <div class="cycles-section">
       <h2>Review Cycle Performance</h2>
       <div class="cycles-grid">
-        {% for cycle_name, cycle_data in reviewer.cycles.items() %}
+        {% for cycle_name, cycle_data in institution.cycles.items() %}
         <div class="cycle-card">
           <div class="cycle-header">
             <h3>{{ cycle_name.replace('_', '-') }}</h3>
-            <a href="/reviewers/{{ cycle_name }}/" class="cycle-link">View Cycle</a>
+            <a href="/institutions/{{ cycle_name }}/" class="cycle-link">View Cycle</a>
           </div>
           <div class="cycle-stats">
             <div class="cycle-stat">
@@ -126,12 +150,16 @@
               <span class="stat-label">Total Reviews</span>
             </div>
             <div class="cycle-stat">
-              <span class="stat-value">{{ "%.1f"|format(cycle_data.percentage) }}%</span>
+              <span class="stat-value">{{ cycle_data.reviewer_count }}</span>
+              <span class="stat-label">Active Reviewers</span>
+            </div>
+            <div class="cycle-stat">
+              <span class="stat-value">{{ "%.1f"|format(cycle_data.recognition_rate * 100) }}%</span>
               <span class="stat-label">Recognition Rate</span>
             </div>
           </div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: {{ cycle_data.percentage }}%"></div>
+            <div class="progress-fill" style="width: {{ cycle_data.recognition_rate * 100 }}%"></div>
           </div>
         </div>
         {% endfor %}
@@ -141,14 +169,14 @@
 
     <!-- Navigation -->
     <div class="profile-navigation">
-      <a href="/reviewers/" class="nav-button">← Back to All Reviewers</a>
+      <a href="/institutions/" class="nav-button">← Back to All Institutions</a>
       <a href="/" class="nav-button">Home</a>
     </div>
   </div>
 </div>
 
 <style>
-.reviewer-profile {
+.institution-profile {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
@@ -167,44 +195,34 @@
   margin-bottom: 2rem;
 }
 
-.reviewer-name {
+.institution-name {
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: var(--text-primary);
 }
 
-.institution {
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-}
-
-.institution-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.institution-link:hover {
-  text-decoration: underline;
-  color: var(--secondary-color);
-}
-
-.openreview-link a {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-weight: 500;
+.name-variations {
+  margin-top: 0.75rem;
   padding: 0.5rem 1rem;
-  border: 2px solid var(--primary-color);
+  background: var(--bg-secondary);
   border-radius: 6px;
-  transition: all 0.2s;
+  border-left: 3px solid var(--primary-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
-.openreview-link a:hover {
-  background: var(--primary-color);
-  color: white;
+.variations-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-right: 0.5rem;
 }
+
+.variation-name {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
 
 .stats-grid {
   display: grid;
@@ -235,7 +253,7 @@
   letter-spacing: 0.5px;
 }
 
-.achievements-section, .cycles-section {
+.achievements-section, .top-reviewers-section, .cycles-section {
   background: var(--bg-primary);
   border-radius: 12px;
   padding: 2rem;
@@ -243,7 +261,7 @@
   box-shadow: var(--shadow-md);
 }
 
-.achievements-section h2, .cycles-section h2 {
+.achievements-section h2, .top-reviewers-section h2, .cycles-section h2 {
   font-size: 1.8rem;
   margin-bottom: 1.5rem;
   color: var(--text-primary);
@@ -293,6 +311,57 @@
   color: var(--text-secondary);
 }
 
+.reviewers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.reviewer-card {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  transition: box-shadow 0.2s;
+}
+
+.reviewer-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.reviewer-info h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.reviewer-link {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.reviewer-link:hover {
+  text-decoration: underline;
+}
+
+.reviewer-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.reviewer-stats .stat {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.more-reviewers {
+  text-align: center;
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 .cycles-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -335,14 +404,14 @@
 }
 
 .cycle-stats {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
 .cycle-stat {
   text-align: center;
-  flex: 1;
 }
 
 .cycle-stat .stat-value {
@@ -395,19 +464,23 @@
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
-  .reviewer-profile {
+  .institution-profile {
     padding: 1rem;
   }
   
-  .reviewer-name {
+  .institution-name {
     font-size: 2rem;
   }
   
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
   
   .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .reviewers-grid {
     grid-template-columns: 1fr;
   }
   
@@ -416,12 +489,17 @@
   }
   
   .cycle-stats {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 0.5rem;
   }
   
   .profile-navigation {
     flex-direction: column;
+  }
+  
+  .reviewer-stats {
+    flex-direction: column;
+    gap: 0.25rem;
   }
 }
 </style>

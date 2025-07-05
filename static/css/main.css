@@ -615,6 +615,17 @@ table tr:hover {
   outline-offset: 2px;
 }
 
+.institution-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.institution-link:hover {
+  text-decoration: underline;
+  color: var(--secondary-color);
+}
+
 /* Rank Badges */
 .rank-badge {
   display: inline-flex;
