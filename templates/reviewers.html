@@ -128,6 +128,9 @@ Promise.all([
   fetch('/data/metrics/top_people_absolute.json').then(r => r.json()),
   fetch('/data/reviewers_database.json').then(r => r.json()).catch(() => ({}))
 ]).then(([reviewerData, reviewerDatabase]) => {
+  // Make reviewer database globally available for card clicks
+  window.reviewerDatabase = reviewerDatabase;
+  
   // Build ID mapping
   Object.values(reviewerDatabase).forEach(reviewer => {
     const key = `${reviewer.name}|${reviewer.institution}`;

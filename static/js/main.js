@@ -480,6 +480,20 @@ function makeEnhancedTable(tableId, config = {}) {
     addSwipeSupport();
   }
   
+  // Function to find reviewer profile URL
+  function getReviewerProfileUrl(name, institution) {
+    // Check if reviewer database is available globally
+    if (typeof window.reviewerDatabase !== 'undefined') {
+      for (const [openreviewId, reviewerData] of Object.entries(window.reviewerDatabase)) {
+        if (reviewerData.name === name && reviewerData.institution === institution) {
+          const urlSafeId = openreviewId.replace('~', '').replace(/[\/\\]/g, '-');
+          return `/reviewer/${urlSafeId}/`;
+        }
+      }
+    }
+    return null;
+  }
+
   // Add swipe support for mobile card interactions
   function addSwipeSupport() {
     const cards = cardsContainer.querySelectorAll('.data-card');
@@ -551,10 +565,23 @@ function makeEnhancedTable(tableId, config = {}) {
         isDragging = false;
       }, { passive: true });
       
-      // Add subtle hover effect for cards
+      // Add click functionality for navigation to reviewer profiles
       card.addEventListener('click', (e) => {
         if (!isDragging) {
-          // Add a subtle pulse effect
+          const index = parseInt(card.dataset.index);
+          const item = filteredData[index];
+          
+          // Only navigate for reviewer cards (not institution cards)
+          if (!isInstitutionTable && item.name && item.institution) {
+            // Try to find profile URL
+            const profileUrl = getReviewerProfileUrl(item.name, item.institution);
+            if (profileUrl) {
+              window.location.href = profileUrl;
+              return;
+            }
+          }
+          
+          // Fallback: Add a subtle pulse effect if no navigation
           card.style.transform = 'scale(0.98)';
           setTimeout(() => {
             card.style.transform = '';

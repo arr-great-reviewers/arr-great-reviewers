@@ -160,6 +160,9 @@ fetch(`/data/raw/${cycle}.json`)
     fetch('/data/reviewers_database.json')
       .then(r => r.json())
       .then(reviewerDatabase => {
+        // Make reviewer database globally available for card clicks
+        window.reviewerDatabase = reviewerDatabase;
+        
         // Build ID mapping
         const reviewerIdMap = {};
         Object.values(reviewerDatabase).forEach(reviewer => {
