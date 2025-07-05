@@ -170,6 +170,22 @@ def build_reviewer_database() -> Dict[str, Dict]:
                 "percentage": float(reviewer.get("percentage", 0.0)),
             }
 
+    # Recalculate overall totals from cycle data for all reviewers
+    for openreview_id, reviewer_data in reviewer_db.items():
+        total_recognized = 0
+        total_reviewed = 0
+        
+        for cycle_data in reviewer_data["cycles"].values():
+            total_recognized += cycle_data["recognized"]
+            total_reviewed += cycle_data["reviewed"]
+        
+        # Update totals (this will override values from top_people_absolute.json)
+        reviewer_data["total_recognized"] = total_recognized
+        reviewer_data["total_reviewed"] = total_reviewed
+        reviewer_data["recognition_rate"] = (
+            total_recognized / total_reviewed if total_reviewed > 0 else 0.0
+        )
+
     return reviewer_db
 
 
