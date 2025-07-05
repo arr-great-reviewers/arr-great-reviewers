@@ -242,6 +242,9 @@ function loadIndexData() {
     fetch('/data/reviewers_database.json').then(r => r.json())
   ])
     .then(([reviewers, institutions, reviewerDatabase]) => {
+      // Make reviewer database globally available for card clicks
+      window.reviewerDatabase = reviewerDatabase;
+      
       // Update total unique reviewers across all cycles
       const totalReviewersElement = document.getElementById('total-reviewers');
       if (totalReviewersElement) {
