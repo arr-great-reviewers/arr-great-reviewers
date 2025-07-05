@@ -4,3 +4,4 @@ __pycache__/
 uvenv/
 site/
 data/
+!data/openreview_profile_mapping.json
