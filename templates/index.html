@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}ARR Great Reviewers - Excellence in Peer Review Recognition{% endblock %}
+
+{% block description %}Discover and honor outstanding peer reviewers in ACL Rolling Review. Recognizing excellence in academic peer review through comprehensive statistics and leaderboards.{% endblock %}
+
+{% block keywords %}ACL Rolling Review, peer reviewers, academic excellence, NLP review, computational linguistics, great reviews, reviewer leaderboard, academic recognition{% endblock %}
+
+{% block og_title %}ARR Great Reviewers - Excellence in Peer Review Recognition{% endblock %}
+{% block og_description %}Discover and honor outstanding peer reviewers in ACL Rolling Review. Recognizing excellence in academic peer review through comprehensive statistics and leaderboards.{% endblock %}
+{% block og_type %}website{% endblock %}
+
+{% block twitter_title %}ARR Great Reviewers - Excellence in Peer Review Recognition{% endblock %}
+{% block twitter_description %}Discover and honor outstanding peer reviewers in ACL Rolling Review. Recognizing excellence in academic peer review through comprehensive statistics and leaderboards.{% endblock %}
+
+{% block schema_type %}WebSite{% endblock %}
+{% block schema_name %}ARR Great Reviewers{% endblock %}
+{% block schema_description %}Discover and honor outstanding peer reviewers in ACL Rolling Review. Recognizing excellence in academic peer review through comprehensive statistics and leaderboards.{% endblock %}
+{% block schema_additional %},
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://arrgreatreviewers.org/reviewers/?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }{% endblock %}
+
+{% block content %}
+<div class="hero-section animate-fade-in">
+  <h2>ACL Rolling Review Excellence Leaderboard</h2>
+  <p>Honoring the dedication and expertise of peer reviewers who maintain the highest standards in academic review. This leaderboard recognizes those who consistently deliver thorough, constructive, and timely reviews.</p>
+</div>
+
+<div class="great-reviews-highlight animate-fade-in" style="
+  background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 3rem auto;
+  max-width: 900px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 20px rgba(59, 130, 246, 0.1);
+  position: relative;
+  overflow: hidden;">
+  
+  <div style="
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border-radius: 50%;
+    opacity: 0.1;"></div>
+  
+  <div style="
+    position: absolute;
+    bottom: -30px;
+    left: -30px;
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+    border-radius: 50%;
+    opacity: 0.1;"></div>
+  
+  <div style="position: relative; z-index: 1;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <span style="
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        color: white;
+        padding: 0.5rem 1.5rem;
+        border-radius: 24px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-block;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        ⭐ What Makes a Great Review? ⭐
+      </span>
+    </div>
+    
+    <blockquote style="margin: 0; padding: 0; border: none;">
+      <p style="
+        color: #1e293b;
+        line-height: 1.8;
+        font-size: 1.1rem;
+        text-align: center;
+        margin: 0 auto;
+        max-width: 800px;
+        font-weight: 500;">
+        <span style="font-size: 2rem; color: #3b82f6; opacity: 0.5;">"</span>We would like to highlight the importance of quality reviews in the ACL rolling review process. If a review is deemed <span style="
+          background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          font-weight: 700;">strong, decisive, helpful, and well-written</span> by Area Chairs, it will be marked as a <span style="
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          padding: 0.2rem 0.6rem;
+          border-radius: 6px;
+          font-weight: 700;
+          display: inline-block;
+          transform: rotate(-1deg);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">Great Review</span>. Please note that a review not marked as great does not imply that it is poor; rather, it may simply not meet the exceptional standards set for this designation. Thank you for your continued contributions to the review process. Your efforts are invaluable in maintaining the quality and integrity of our evaluations.<span style="font-size: 2rem; color: #3b82f6; opacity: 0.5;">"</span>
+      </p>
+      <cite style="
+        display: block;
+        text-align: right;
+        margin-top: 1.5rem;
+        color: #64748b;
+        font-size: 0.95rem;">
+        — <a href="https://stats.aclrollingreview.org/iterations/2024/april/" target="_blank" rel="noopener" style="
+          color: #3b82f6;
+          text-decoration: none;
+          font-weight: 600;
+          border-bottom: 2px solid #3b82f6;
+          padding-bottom: 2px;
+          transition: all 0.2s ease;">ARR Stats, April 2024</a>
+      </cite>
+    </blockquote>
+  </div>
+</div>
+
+<div class="stats-grid animate-fade-in">
+  <div class="stat-card">
+    <h3>Rewarded Reviews</h3>
+    <div class="value" id="total-reviews">-</div>
+    <div class="change">Across all review cycles</div>
+  </div>
+  <div class="stat-card">
+    <h3>Total Reviewers</h3>
+    <div class="value" id="total-reviewers">-</div>
+    <div class="change">Recognized across all cycles</div>
+  </div>
+  <div class="stat-card">
+    <h3>Top Institutions</h3>
+    <div class="value" id="top-institutions">-</div>
+    <div class="change">Contributing great reviewers</div>
+  </div>
+  <div class="stat-card">
+    <h3>Recognition Rate</h3>
+    <div class="value" id="recognition-rate">-</div>
+    <div class="change">Macro average across great reviewers</div>
+  </div>
+</div>
+
+<div class="content-section animate-fade-in">
+  <h2>📊 Review Activity Timeline</h2>
+  <div id="snapshot" style="width: 100%; height: 400px;"></div>
+</div>
+
+<div class="profile-finder-section animate-fade-in">
+  <div class="profile-finder-container">
+    <div class="profile-finder-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+    </div>
+    <div class="profile-finder-content">
+      <h2>Find Your Reviewer Profile</h2>
+      <p>Search by name to discover your review statistics, achievements, and recognition history</p>
+      <div class="profile-finder-search">
+        <input type="text" 
+               id="profile-search-input" 
+               class="profile-search-input" 
+               placeholder="Enter your name..." 
+               autocomplete="off">
+        <button class="profile-search-button" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="profile-search-results" class="profile-search-results"></div>
+    </div>
+  </div>
+</div>
+
+<div class="content-section animate-fade-in">
+  <h2>🏆 Top Reviewers</h2>
+  <div class="table-container">
+    <table id="top-reviewers-table">
+      <thead>
+        <tr>
+          <th class="sortable">Rank</th>
+          <th class="sortable">Reviewer</th>
+          <th class="sortable">Institution</th>
+          <th class="sortable">Great Reviews</th>
+          <th class="sortable">Total Reviews</th>
+        </tr>
+      </thead>
+      <tbody id="top-reviewers-body">
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 2rem;">Loading leaderboard data...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% block page_scripts %}
+<script src="/assets/js/index.js"></script>
+{% endblock %}
+{% endblock %}

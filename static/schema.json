@@ -1,0 +1,40 @@
+{
+  "top_people_absolute": [
+    "name",
+    "institution",
+    "recognized",
+    "reviewed",
+    "percentage",
+    "recognition_rate"
+  ],
+  "top_people_percentage": [
+    "name",
+    "institution",
+    "recognized",
+    "reviewed",
+    "percentage",
+    "recognition_rate"
+  ],
+  "top_institutions_absolute": [
+    "institution",
+    "recognized",
+    "reviewed",
+    "reviewer_count",
+    "recognition_rate"
+  ],
+  "top_institutions_percentage": [
+    "institution",
+    "percentage",
+    "recognized",
+    "reviewed"
+  ],
+  "monthly_snapshots": [
+    "iteration",
+    "reviewed",
+    "recognized"
+  ],
+  "misc_insights": [
+    "gini_recognized",
+    "herfindahl_institutions"
+  ]
+}

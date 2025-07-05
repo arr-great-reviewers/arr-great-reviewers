@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
+
+{% block description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+
+{% block keywords %}{{ reviewer.name }}, {{ reviewer.institution }}, ACL Rolling Review, peer reviewer profile, academic reviewer, NLP reviewer, computational linguistics, great reviews{% endblock %}
+
+{% block og_title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
+{% block og_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block og_type %}profile{% endblock %}
+
+{% block twitter_title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+
+{% block schema_type %}Person{% endblock %}
+{% block schema_name %}{{ reviewer.name }}{% endblock %}
+{% block schema_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block schema_additional %},
+    "givenName": "{{ reviewer.name.split(' ')[0] if reviewer.name }}",
+    "familyName": "{{ reviewer.name.split(' ')[-1] if reviewer.name and reviewer.name.split(' ')|length > 1 }}",
+    "affiliation": {
+      "@type": "Organization",
+      "name": "{{ reviewer.institution }}"
+    },
+    "knowsAbout": ["Peer Review", "Academic Publishing", "Natural Language Processing", "Computational Linguistics"],
+    "hasOccupation": {
+      "@type": "Occupation",
+      "name": "Academic Reviewer"
+    }{% if reviewer.openreview_id %},
+    "sameAs": "https://openreview.net/profile?id={{ reviewer.openreview_id }}"{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="reviewer-profile">
+    <!-- Profile Header -->
+    <div class="profile-header">
+      <div class="profile-info">
+        <h1 class="reviewer-name">{{ reviewer.name }}</h1>
+        <p class="institution">{{ reviewer.institution }}</p>
+        {% if reviewer.openreview_id %}
+        <p class="openreview-link">
+          <a href="https://openreview.net/profile?id={{ reviewer.openreview_id }}" target="_blank" rel="noopener noreferrer">
+            View OpenReview Profile
+          </a>
+        </p>
+        {% endif %}
+      </div>
+      
+      <!-- Overall Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">{{ reviewer.total_recognized }}</div>
+          <div class="stat-label">Great Reviews</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ reviewer.total_reviewed }}</div>
+          <div class="stat-label">Total Reviews</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ "%.1f"|format(reviewer.recognition_rate * 100) }}%</div>
+          <div class="stat-label">Recognition Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements Section -->
+    {% if reviewer.achievements %}
+    <div class="achievements-section">
+      <h2>Achievements</h2>
+      <div class="achievements-grid">
+        {% for achievement in reviewer.achievements %}
+        <div class="achievement-badge achievement-{{ achievement.type.split('_')[1] }}">
+          <div class="badge-icon">
+            {% if 'top_1' in achievement.type or 'top_2' in achievement.type or 'top_3' in achievement.type %}
+              🥇
+            {% elif 'top_5' in achievement.type %}
+              🥇
+            {% elif 'top_10' in achievement.type or 'top_20' in achievement.type %}
+              🥈
+            {% elif 'top_50' in achievement.type %}
+              🥉
+            {% endif %}
+          </div>
+          <div class="badge-content">
+            <div class="badge-title">{{ achievement.title }}</div>
+            <div class="badge-description">{{ achievement.description }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Cycle Performance -->
+    {% if reviewer.cycles %}
+    <div class="cycles-section">
+      <h2>Review Cycle Performance</h2>
+      <div class="cycles-grid">
+        {% for cycle_name, cycle_data in reviewer.cycles.items() %}
+        <div class="cycle-card">
+          <div class="cycle-header">
+            <h3>{{ cycle_name.replace('_', '-') }}</h3>
+            <a href="/reviewers/{{ cycle_name }}/" class="cycle-link">View Cycle</a>
+          </div>
+          <div class="cycle-stats">
+            <div class="cycle-stat">
+              <span class="stat-value">{{ cycle_data.recognized }}</span>
+              <span class="stat-label">Great Reviews</span>
+            </div>
+            <div class="cycle-stat">
+              <span class="stat-value">{{ cycle_data.reviewed }}</span>
+              <span class="stat-label">Total Reviews</span>
+            </div>
+            <div class="cycle-stat">
+              <span class="stat-value">{{ "%.1f"|format(cycle_data.percentage) }}%</span>
+              <span class="stat-label">Recognition Rate</span>
+            </div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ cycle_data.percentage }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation -->
+    <div class="profile-navigation">
+      <a href="/reviewers/" class="nav-button">← Back to All Reviewers</a>
+      <a href="/" class="nav-button">Home</a>
+    </div>
+  </div>
+</div>
+
+<style>
+.reviewer-profile {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.profile-header {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-md);
+}
+
+.profile-info {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.reviewer-name {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.institution {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.openreview-link a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--primary-color);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.openreview-link a:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.achievements-section, .cycles-section {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-md);
+}
+
+.achievements-section h2, .cycles-section h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.achievement-badge {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid;
+  transition: transform 0.2s;
+}
+
+.achievement-badge:hover {
+  transform: translateY(-2px);
+}
+
+.achievement-badge.achievement-top {
+  border-color: var(--success-color);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.badge-icon {
+  font-size: 2rem;
+  margin-right: 1rem;
+}
+
+.badge-content {
+  flex: 1;
+}
+
+.badge-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.badge-description {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.cycles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.cycle-card {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  transition: box-shadow 0.2s;
+}
+
+.cycle-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.cycle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cycle-header h3 {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.cycle-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.cycle-link:hover {
+  text-decoration: underline;
+}
+
+.cycle-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.cycle-stat {
+  text-align: center;
+  flex: 1;
+}
+
+.cycle-stat .stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.cycle-stat .stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.progress-bar {
+  background: var(--border-color);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.profile-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.nav-button {
+  padding: 0.75rem 1.5rem;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.nav-button:hover {
+  background: var(--secondary-color);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .reviewer-profile {
+    padding: 1rem;
+  }
+  
+  .reviewer-name {
+    font-size: 2rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cycles-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cycle-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .profile-navigation {
+    flex-direction: column;
+  }
+}
+</style>
+{% endblock %}

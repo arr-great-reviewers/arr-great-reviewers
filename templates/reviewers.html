@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Top Reviewers - ARR Great Reviewers{% endblock %}
+
+{% block description %}Discover the top peer reviewers in ACL Rolling Review ranked by recognition count and percentage. View detailed statistics and achievements of outstanding academic reviewers.{% endblock %}
+
+{% block keywords %}top reviewers, ACL Rolling Review rankings, peer review excellence, academic reviewers, NLP reviewers, computational linguistics, reviewer leaderboard{% endblock %}
+
+{% block og_title %}Top Reviewers - ARR Great Reviewers{% endblock %}
+{% block og_description %}Discover the top peer reviewers in ACL Rolling Review ranked by recognition count and percentage. View detailed statistics and achievements of outstanding academic reviewers.{% endblock %}
+{% block og_type %}website{% endblock %}
+
+{% block twitter_title %}Top Reviewers - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}Discover the top peer reviewers in ACL Rolling Review ranked by recognition count and percentage. View detailed statistics and achievements of outstanding academic reviewers.{% endblock %}
+
+{% block schema_type %}CollectionPage{% endblock %}
+{% block schema_name %}Top Reviewers - ARR Great Reviewers{% endblock %}
+{% block schema_description %}Discover the top peer reviewers in ACL Rolling Review ranked by recognition count and percentage. View detailed statistics and achievements of outstanding academic reviewers.{% endblock %}
+{% block schema_additional %},
+    "mainEntity": {
+      "@type": "ItemList",
+      "name": "Top ACL Rolling Review Reviewers",
+      "description": "Ranked list of outstanding peer reviewers in ACL Rolling Review"
+    }{% endblock %}
+
+{% block content %}
+<div class="hero-section animate-fade-in">
+  <h2>Outstanding Reviewers Leaderboard</h2>
+  <p>These distinguished reviewers have demonstrated exceptional commitment to maintaining the quality and integrity of academic peer review through their thorough, constructive, and timely feedback.</p>
+  <div class="cycle-nav">
+    <h3 style="margin: 0; font-size: 1.125rem; color: var(--text-primary);">Cycles:</h3>
+    <span class="cycle-current">All Cycles</span>
+    {% for cycle in cycles %}
+    <a href="/reviewers/{{ cycle }}/" class="cycle-link">{{ cycle.replace("_", "-") }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="content-section animate-fade-in">
+  <h2>🏆 Top Reviewers by Recognition Count</h2>
+  <p style="color: var(--text-secondary); margin-bottom: 2rem;">Reviewers ranked by the number of times they have been recognized for exceptional review quality.</p>
+  <div id="rev_abs" style="width: 100%; height: 500px;"></div>
+</div>
+
+<div class="content-section animate-fade-in">
+  <h2>📈 Top Reviewers by Recognition Percentage</h2>
+  <p style="color: var(--text-secondary); margin-bottom: 2rem;">Reviewers who maintain the highest percentage of recognized reviews relative to their total review count (minimum 3 reviews).</p>
+  <div id="rev_pct" style="width: 100%; height: 500px;"></div>
+</div>
+
+<div class="content-section animate-fade-in">
+  <h2>📊 Complete Reviewer Rankings</h2>
+  <div class="table-container">
+    <table id="full-reviewers-table">
+      <thead>
+        <tr>
+          <th class="sortable">Rank</th>
+          <th class="sortable">Reviewer Name</th>
+          <th class="sortable">Institution</th>
+          <th class="sortable">Rewarded Reviews</th>
+          <th class="sortable">Recognized Reviews</th>
+          <th class="sortable">Recognition Rate</th>
+        </tr>
+      </thead>
+      <tbody id="full-reviewers-body">
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 2rem;">Loading complete reviewer data...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// Load reviewer database to get OpenReview IDs
+let reviewerIdMap = {};
+
+// Function to get URL-safe reviewer ID 
+function getReviewerUrl(name, institution) {
+  const key = `${name}|${institution}`;
+  const openreviewId = reviewerIdMap[key];
+  
+  if (openreviewId) {
+    // Convert OpenReview ID to URL-safe format (~First_LastN -> First_LastN)
+    return openreviewId.replace('~', '');
+  }
+  
+  return null; // No OpenReview ID available
+}
+
+// Function to populate the table (called after both data sources are loaded)
+function populateTable(reviewerData) {
+  const tbody = document.getElementById('full-reviewers-body');
+  tbody.innerHTML = reviewerData.slice(0, 50).map((reviewer, index) => {
+    const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+    const reviewerUrl = getReviewerUrl(reviewer.name || '', reviewer.institution || '');
+    
+    // Create name cell with or without link based on OpenReview ID availability
+    const nameCell = reviewerUrl 
+      ? `<strong><a href="/reviewer/${reviewerUrl}/" class="reviewer-link">${reviewer.name || 'Anonymous'}</a></strong>`
+      : `<strong>${reviewer.name || 'Anonymous'}</strong>`;
+    
+    return `
+      <tr class="animate-fade-in" style="animation-delay: ${Math.min(index * 0.02, 0.5)}s">
+        <td><span class="rank-badge ${rankClass}">${index + 1}</span></td>
+        <td>${nameCell}</td>
+        <td>${reviewer.institution || 'N/A'}</td>
+        <td>${reviewer.reviewed || '-'}</td>
+        <td>${reviewer.recognized || '-'}</td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="progress-bar" style="flex: 1;">
+              <div class="progress-fill" style="width: ${(reviewer.reviewed && reviewer.reviewed > 0) ? Math.min(((reviewer.recognized || 0) / reviewer.reviewed) * 100, 100) : 0}%"></div>
+            </div>
+            <span style="font-size: 0.875rem; color: var(--text-secondary);">${(reviewer.reviewed && reviewer.reviewed > 0) ? (((reviewer.recognized || 0) / reviewer.reviewed) * 100).toFixed(1) + '%' : '-'}</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Make table enhanced
+  makeEnhancedTable('full-reviewers-table');
+}
+
+// Load data in parallel and populate table when both are ready
+Promise.all([
+  fetch('/data/metrics/top_people_absolute.json').then(r => r.json()),
+  fetch('/data/reviewers_database.json').then(r => r.json()).catch(() => ({}))
+]).then(([reviewerData, reviewerDatabase]) => {
+  // Build ID mapping
+  Object.values(reviewerDatabase).forEach(reviewer => {
+    const key = `${reviewer.name}|${reviewer.institution}`;
+    reviewerIdMap[key] = reviewer.openreview_id;
+  });
+  
+  // Create chart
+  const topData = reviewerData.slice(0, 20);
+  const names = topData.map(d => d.name || 'Anonymous');
+  const values = topData.map(d => d.recognized || 0);
+  
+  const trace = {
+    x: names,
+    y: values,
+    type: 'bar',
+    marker: {
+      color: values.map((v, i) => {
+        if (i === 0) return '#fbbf24';
+        if (i === 1) return '#e5e7eb';
+        if (i === 2) return '#c9975e';
+        return '#3b82f6';
+      }),
+      line: {
+        color: values.map((v, i) => {
+          if (i === 0) return '#f59e0b';
+          if (i === 1) return '#9ca3af';
+          if (i === 2) return '#b97c45';
+          return '#2563eb';
+        }),
+        width: 1
+      }
+    },
+    text: values.map(v => v.toString()),
+    textposition: 'outside',
+    hovertemplate: '<b>%{x}</b><br>Recognized Reviews: %{y}<extra></extra>'
+  };
+  
+  const layout = {
+    xaxis: {
+      title: 'Reviewer',
+      tickangle: -45
+    },
+    yaxis: {
+      title: 'Number of Recognized Reviews'
+    },
+    margin: {
+      l: 60,
+      r: 30,
+      t: 30,
+      b: 120
+    },
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: {
+      family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      size: 12,
+      color: '#64748b'
+    },
+    showlegend: false
+  };
+  
+  const config = {
+    responsive: true,
+    displayModeBar: false
+  };
+  
+  Plotly.newPlot('rev_abs', [trace], layout, config);
+  
+  // Populate the table with proper links
+  populateTable(reviewerData);
+})
+  .catch(err => {
+    console.error('Error loading reviewer data:', err);
+    document.getElementById('rev_abs').innerHTML = 
+      '<p style="text-align: center; color: var(--text-secondary);">Unable to load reviewer data</p>';
+  });
+
+// Fetch and display top reviewers by percentage
+fetch('/data/metrics/top_people_absolute.json')
+  .then(r => r.json())
+  .then(data => {
+    // Filter to only include reviewers with at least 3 reviews
+    const filteredData = data.filter(d => (d.reviewed || 0) >= 3);
+    // Calculate percentage and sort by it
+    const dataWithPercentage = filteredData.map(d => ({
+      ...d,
+      percentage: d.reviewed > 0 ? (d.recognized / d.reviewed) * 100 : 0
+    })).sort((a, b) => b.percentage - a.percentage);
+    
+    const topData = dataWithPercentage.slice(0, 20);
+    const names = topData.map(d => d.name || 'Anonymous');
+    const percentages = topData.map(d => (d.percentage || 0).toFixed(1));
+    
+    const trace = {
+      x: names,
+      y: percentages,
+      type: 'bar',
+      marker: {
+        color: '#10b981',
+        line: {
+          color: '#059669',
+          width: 1
+        }
+      },
+      text: percentages.map(p => p + '%'),
+      textposition: 'outside',
+      hovertemplate: '<b>%{x}</b><br>Recognition Rate: %{y}%<br>Reviews: %{customdata}<extra></extra>',
+      customdata: topData.map(d => d.reviewed || 0)
+    };
+    
+    const layout = {
+      xaxis: {
+        title: 'Reviewer',
+        tickangle: -45
+      },
+      yaxis: {
+        title: 'Recognition Rate (%)',
+        range: [0, 100]
+      },
+      margin: {
+        l: 60,
+        r: 30,
+        t: 30,
+        b: 120
+      },
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      font: {
+        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        size: 12,
+        color: '#64748b'
+      },
+      showlegend: false
+    };
+    
+    const config = {
+      responsive: true,
+      displayModeBar: false
+    };
+    
+    Plotly.newPlot('rev_pct', [trace], layout, config);
+  })
+  .catch(err => {
+    console.error('Error loading percentage data:', err);
+    document.getElementById('rev_pct').innerHTML = 
+      '<p style="text-align: center; color: var(--text-secondary);">Unable to load percentage data</p>';
+  });
+</script>
+{% endblock %}

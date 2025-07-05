@@ -1,0 +1,12 @@
+# Manual OpenReview ID mappings
+# This file allows manual mapping of reviewer names to OpenReview profile IDs
+# for cases where automatic matching fails or reviewers need to be included
+# Format: "Full Name|Institution" = "openreview_profile_id"
+
+[mappings]
+
+"R. Thomas McCoy|Yale University" = "~R._Thomas_McCoy1"
+"Michael Wiegand|Universität Vienna" = "~Michael_Wiegand2"
+"Aparna Ananthasubramaniam|University of Michigan - Ann Arbor" = "~Aparna_Ananthasubramaniam1"
+"Xanh Ho|NII, Tokyo Institute of Technology" = "~Xanh_Ho1"
+"Zach Wood-Doughty|Northwestern University" = "~Zach_Wood-Doughty1"

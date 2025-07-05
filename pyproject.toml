@@ -1,0 +1,19 @@
+[project]
+name = "arr-great-reviewers"
+version = "0.1.0"
+description = "Analytics and static site for ARR great reviewers"
+authors = [{ name = "ARR Team" }]
+requires-python = ">=3.12"
+dependencies = [
+  "requests<3",
+  "pandas",
+  "numpy",
+  "plotly>=5",
+  "jinja2",
+  "rich",
+  "python-slugify",
+  "typer",
+  "beautifulsoup4",
+]
+
+[tool.uv]

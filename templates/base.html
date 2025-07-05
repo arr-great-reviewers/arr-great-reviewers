@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ site_title }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ description }}{% endblock %}">
+  <link rel="canonical" href="{% block canonical_url %}https://arrgreatreviewers.org/{% endblock %}">
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/logo.png">
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:url" content="{% block og_url %}https://arrgreatreviewers.org/{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}{{ site_title }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ description }}{% endblock %}">
+  <meta property="og:image" content="{% block og_image %}https://arrgreatreviewers.org/assets/og-image.jpg{% endblock %}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="ARR Great Reviewers">
+  <meta property="og:locale" content="en_US">
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="{% block twitter_url %}https://arrgreatreviewers.org/{% endblock %}">
+  <meta property="twitter:title" content="{% block twitter_title %}{{ site_title }}{% endblock %}">
+  <meta property="twitter:description" content="{% block twitter_description %}{{ description }}{% endblock %}">
+  <meta property="twitter:image" content="{% block twitter_image %}https://arrgreatreviewers.org/assets/twitter-image.jpg{% endblock %}">
+  <meta property="twitter:creator" content="@ACLrollingreview">
+  <meta property="twitter:site" content="@ACLrollingreview">
+  <!-- Additional SEO Meta Tags -->
+  <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
+  <meta name="author" content="{% block author %}ARR Great Reviewers{% endblock %}">
+  <meta name="keywords" content="{% block keywords %}ACL Rolling Review, peer review, academic review, NLP, computational linguistics, great reviews, reviewer recognition{% endblock %}">
+  <!-- Schema.org structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "{% block schema_type %}WebSite{% endblock %}",
+    "name": "{% block schema_name %}ARR Great Reviewers{% endblock %}",
+    "description": "{% block schema_description %}{{ description }}{% endblock %}",
+    "url": "{% block schema_url %}https://arrgreatreviewers.org/{% endblock %}",
+    "publisher": {
+      "@type": "Organization",
+      "name": "ARR Great Reviewers",
+      "url": "https://arrgreatreviewers.org/"
+    }{% block schema_additional %}{% endblock %}
+  }
+  </script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+<header>
+  <div class="header-content">
+    <div class="title-with-logo">
+      <img src="/assets/logo.png" alt="ARR Great Reviewers Logo" class="site-logo">
+      <h1>{{ site_title }}</h1>
+    </div>
+    <p>Recognizing Excellence in ACL Rolling Review - Celebrating Outstanding Peer Reviewers</p>
+  </div>
+  <button class="mobile-nav-toggle" aria-label="Toggle navigation">☰</button>
+  <nav id="main-nav">
+    <a href="/">Home</a>
+    <a href="/reviewers/">Top Reviewers</a>
+    <a href="/institutions/">Institutions</a>
+    <a href="/methodology/">Methodology</a>
+    <div class="nav-search-container">
+      <button class="nav-search-toggle" aria-label="Search reviewers">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+      </button>
+      <div class="nav-search-dropdown">
+        <input type="text" class="nav-search-input" placeholder="Search reviewer by name..." autocomplete="off">
+        <div class="nav-search-results"></div>
+      </div>
+    </div>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>
+  <p>&copy; 2025 ARR Great Reviewers</p>
+  <p>
+    <a href="https://aclrollingreview.org/">ACL Rolling Review</a> |
+    <a href="/methodology/">Methodology</a> |
+    <a href="https://github.com/arr-great-reviewers/arr-great-reviewers">GitHub</a>
+  </p>
+</footer>
+<script src="/assets/js/main.js"></script>
+{% block page_scripts %}{% endblock %}
+</body>
+</html>
