@@ -1,3 +1,22 @@
+"""
+ARR Great Reviewers Site Builder
+
+Builds the static site with support for selective generation:
+- Default: Generate all pages including all ~2000+ reviewer pages
+- --skip-reviewers: Generate all pages except individual reviewer pages (fast)
+- --single-reviewer ID: Generate all pages + only the specified reviewer page
+
+Usage:
+    python -m src.build_site                           # Full build
+    python -m src.build_site --skip-reviewers          # Fast build
+    python -m src.build_site --single-reviewer "~ID"   # Single reviewer build
+
+Makefile integration:
+    make site                    # Full build
+    make site-fast              # Fast build
+    make site-single-reviewer   # Single reviewer build (Marek Suppa)
+"""
+
 from __future__ import annotations
 
 import json
@@ -21,7 +40,9 @@ def render(template: str, context: dict, out: Path) -> None:
     out.write_text(tmpl.render(**context), encoding="utf-8")
 
 
-def build_site() -> None:
+def build_site(
+    skip_reviewers: bool = False, single_reviewer: str | None = None
+) -> None:
     # Copy static assets to site directory
     static_source = Path("static")
     static_dest = SITE / "assets"
@@ -30,7 +51,7 @@ def build_site() -> None:
         # Remove existing assets directory to ensure clean copy
         if static_dest.exists():
             shutil.rmtree(static_dest)
-        
+
         # Copy entire static directory recursively
         shutil.copytree(static_source, static_dest)
 
@@ -126,23 +147,48 @@ def build_site() -> None:
         )
 
     # Generate individual reviewer pages (only for reviewers with OpenReview IDs)
-    print(f"Generating {len(reviewer_db)} individual reviewer pages...")
-    for openreview_id, reviewer_data in reviewer_db.items():
-        # URL-encode the OpenReview ID for file system compatibility
-        # OpenReview IDs are in format ~First_LastN, we need to make them URL-safe
-        url_safe_id = (
-            openreview_id.replace("~", "").replace("/", "-").replace("\\", "-")
-        )
+    if not skip_reviewers:
+        if single_reviewer:
+            # Generate only the specified reviewer page
+            if single_reviewer in reviewer_db:
+                print(f"Generating single reviewer page for {single_reviewer}...")
+                url_safe_id = (
+                    single_reviewer.replace("~", "")
+                    .replace("/", "-")
+                    .replace("\\", "-")
+                )
+                reviewer_context = {
+                    **common,
+                    "reviewer": reviewer_db[single_reviewer],
+                }
+                render(
+                    "reviewer_profile.html",
+                    reviewer_context,
+                    SITE / "reviewer" / url_safe_id / "index.html",
+                )
+            else:
+                print(f"Warning: Reviewer {single_reviewer} not found in database")
+        else:
+            # Generate all reviewer pages
+            print(f"Generating {len(reviewer_db)} individual reviewer pages...")
+            for openreview_id, reviewer_data in reviewer_db.items():
+                # URL-encode the OpenReview ID for file system compatibility
+                # OpenReview IDs are in format ~First_LastN, we need to make them URL-safe
+                url_safe_id = (
+                    openreview_id.replace("~", "").replace("/", "-").replace("\\", "-")
+                )
 
-        reviewer_context = {
-            **common,
-            "reviewer": reviewer_data,
-        }
-        render(
-            "reviewer_profile.html",
-            reviewer_context,
-            SITE / "reviewer" / url_safe_id / "index.html",
-        )
+                reviewer_context = {
+                    **common,
+                    "reviewer": reviewer_data,
+                }
+                render(
+                    "reviewer_profile.html",
+                    reviewer_context,
+                    SITE / "reviewer" / url_safe_id / "index.html",
+                )
+    else:
+        print("Skipping reviewer pages generation...")
 
     md = Path("docs/METHODOLOGY.md").read_text()
     render(
@@ -155,4 +201,19 @@ def build_site() -> None:
 
 
 if __name__ == "__main__":
-    build_site()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Build the ARR Great Reviewers site")
+    parser.add_argument(
+        "--skip-reviewers",
+        action="store_true",
+        help="Skip generating individual reviewer pages",
+    )
+    parser.add_argument(
+        "--single-reviewer",
+        type=str,
+        help="Generate only the specified reviewer page (OpenReview ID)",
+    )
+
+    args = parser.parse_args()
+    build_site(skip_reviewers=args.skip_reviewers, single_reviewer=args.single_reviewer)

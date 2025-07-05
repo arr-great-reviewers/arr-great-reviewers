@@ -174,11 +174,11 @@ def build_reviewer_database() -> Dict[str, Dict]:
     for openreview_id, reviewer_data in reviewer_db.items():
         total_recognized = 0
         total_reviewed = 0
-        
+
         for cycle_data in reviewer_data["cycles"].values():
             total_recognized += cycle_data["recognized"]
             total_reviewed += cycle_data["reviewed"]
-        
+
         # Update totals (this will override values from top_people_absolute.json)
         reviewer_data["total_recognized"] = total_recognized
         reviewer_data["total_reviewed"] = total_reviewed
