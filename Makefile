@@ -45,8 +45,8 @@ data: install
 
 metrics:
 	$(PY) -m src.reviewer_utils
-	$(PY) -m src.institution_utils
 	$(PY) -m src.arr_analysis
+	$(PY) -m src.institution_utils
 
 site:
 	$(PY) -m src.build_site
