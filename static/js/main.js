@@ -152,13 +152,13 @@ function initializeAnimations() {
       }
     });
   });
-  
+
   // Add intersection observer for fade-in animations
   const observerOptions = {
     threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
+    rootMargin: '0px 0px -10px 0px'
   };
-  
+
   const observer = new IntersectionObserver(function(entries) {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -167,13 +167,36 @@ function initializeAnimations() {
       }
     });
   }, observerOptions);
-  
-  // Observe all elements with animate-fade-in class
-  document.querySelectorAll('.animate-fade-in').forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
-    observer.observe(el);
+
+  // Function to check if element is initially visible
+  function isElementInitiallyVisible(element) {
+    const rect = element.getBoundingClientRect();
+    const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+    // More generous initial visibility check - show if element is within 200px of viewport
+    return rect.top < (windowHeight + 200) && rect.bottom > -200;
+  }
+
+  // Wait for next frame to ensure DOM is fully rendered
+  requestAnimationFrame(() => {
+    // Observe all elements with animate-fade-in class
+    document.querySelectorAll('.animate-fade-in').forEach(el => {
+      el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+
+      // Check if element is initially visible or if page is scrolled to top
+      const isAtTop = window.scrollY <= 100;
+      const isInitiallyVisible = isElementInitiallyVisible(el);
+
+      if (isInitiallyVisible || isAtTop) {
+        // Make initially visible elements or elements when at top appear immediately
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+      } else {
+        // For elements not initially visible, use intersection observer
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        observer.observe(el);
+      }
+    });
   });
 }
 
