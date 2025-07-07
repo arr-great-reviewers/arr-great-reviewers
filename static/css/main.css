@@ -202,6 +202,7 @@ main {
   margin-top: 2rem;
   padding-top: 2rem;
   border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
 }
 
 .cycle-link {
@@ -403,6 +404,7 @@ main {
   display: none;
   gap: 1rem;
   margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
 .data-card {
@@ -1305,6 +1307,8 @@ footer a:hover {
     -webkit-overflow-scrolling: touch;
     border-radius: 0.5rem;
     border: 1px solid var(--border-color);
+    /* Ensure table is visible by default */
+    min-height: 200px;
   }
 
   .table-controls {
@@ -1369,6 +1373,8 @@ footer a:hover {
   table {
     font-size: 0.8rem;
     min-width: 600px;
+    /* Keep table visible initially on mobile */
+    visibility: visible;
   }
   
   table th, table td {
@@ -1388,15 +1394,24 @@ footer a:hover {
   }
   
   .cycle-nav {
-    flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
     padding-top: 1.5rem;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+  }
+  
+  .cycle-nav h3 {
+    display: none;
   }
   
   .cycle-link, .cycle-current {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     text-align: center;
-    min-width: 120px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   
   footer {
@@ -1458,6 +1473,47 @@ footer a:hover {
   
   table th, table td {
     padding: 0.5rem 0.25rem;
+  }
+  
+  .cycle-nav {
+    position: relative;
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .cycle-nav::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2rem;
+    background: linear-gradient(to right, transparent, var(--bg-primary));
+    pointer-events: none;
+  }
+  
+  .cycle-link, .cycle-current {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Tablet/Medium screens */
+@media (max-width: 1024px) {
+  .cycle-nav {
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .cycle-link, .cycle-current {
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+    flex: 0 0 auto;
   }
 }
 
