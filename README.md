@@ -1,8 +1,10 @@
 # ARR Great Reviewers
 
-This project collects and visualises data from the ACL Rolling Review
-"Great Reviewers" program. It downloads per-iteration statistics, computes
-aggregate metrics, and publishes a static website with interactive charts.
+Most reviews get written, submitted, and forgotten. But across all ARR cycles where Area Chairs have awarded "Great Review" recognitions, thousands of reviews were so helpful that they received this distinction. Yet these recognitions get buried at the bottom of stats pages, and the amazing reviewers behind them remain invisible.
+
+**ARR Great Reviewers** finally gives credit where it's due. This open-source project recognizes outstanding peer reviewers in ACL Rolling Review by collecting public statistics, computing comprehensive metrics, and publishing an interactive website that celebrates excellence in academic peer review.
+
+Great reviews transform papers - they clarify murky ideas, identify crucial gaps, and push our field forward. Yet reviewers rarely get thanked for this essential work. This project is a way of saying what authors often think but rarely say: **thank you** to the reviewers who make our research better.
 
 ## Quick start
 
@@ -40,4 +42,4 @@ You can also run individual components:
 All code is formatted with `ruff` and type-checked with `pyright`. Please ensure
 `make build` completes successfully before opening a pull request.
 
-See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for details on data processing.
+See the [About page](https://arrgreatreviewers.org/about/) for details on our motivation and methodology.

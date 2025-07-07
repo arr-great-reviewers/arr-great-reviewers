@@ -273,11 +273,10 @@ def build_site(
     else:
         print("Skipping institution pages generation...")
 
-    md = Path("docs/METHODOLOGY.md").read_text()
     render(
-        "methodology.html",
-        {**common, "content": md},
-        SITE / "methodology" / "index.html",
+        "about.html",
+        {**common},
+        SITE / "about" / "index.html",
     )
 
     (SITE / "404.html").write_text("Page not found", encoding="utf-8")
