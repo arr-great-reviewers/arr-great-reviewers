@@ -14,7 +14,7 @@ function getInstitutionUrl(institutionName) {
 // Function to populate the table (called after all data sources are loaded)
 function populateTable(institutionData) {
   const tbody = document.getElementById('institutions-body');
-  tbody.innerHTML = institutionData.slice(0, 50).map((inst, index) => {
+  tbody.innerHTML = institutionData.slice(0, 100).map((inst, index) => {
     const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
     const institutionUrl = getInstitutionUrl(inst.institution);
     

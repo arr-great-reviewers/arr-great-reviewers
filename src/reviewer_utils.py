@@ -278,6 +278,15 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                     "rank": rank,
                 }
             )
+        elif rank <= 100:
+            reviewer_db[unique_id]["achievements"].append(
+                {
+                    "type": "overall_top_100",
+                    "title": "Top 100 Overall",
+                    "description": f"Ranked #{rank} among all reviewers",
+                    "rank": rank,
+                }
+            )
 
     # Calculate cycle-specific rankings
     all_cycles = set()
@@ -372,6 +381,16 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                     {
                         "type": f"cycle_top_50_{cycle}",
                         "title": f"Top 50 in {cycle}",
+                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "rank": rank,
+                        "cycle": cycle,
+                    }
+                )
+            elif rank <= 100:
+                reviewer_db[unique_id]["achievements"].append(
+                    {
+                        "type": f"cycle_top_100_{cycle}",
+                        "title": f"Top 100 in {cycle}",
                         "description": f"Ranked #{rank} in {cycle} cycle",
                         "rank": rank,
                         "cycle": cycle,

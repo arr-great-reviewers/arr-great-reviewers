@@ -90,8 +90,9 @@
             {% elif achievement.type in ['overall_top_20'] or
                     achievement.type.startswith('cycle_top_20_') %}
               🥈
-            {% elif achievement.type in ['overall_top_50'] or
-                    achievement.type.startswith('cycle_top_50_') %}
+            {% elif achievement.type in ['overall_top_50', 'overall_top_100'] or
+                    achievement.type.startswith('cycle_top_50_') or
+                    achievement.type.startswith('cycle_top_100_') %}
               🥉
             {% endif %}
           </div>

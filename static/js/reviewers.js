@@ -22,7 +22,7 @@ function getReviewerUrl(name, institution) {
 // Function to populate the table (called after both data sources are loaded)
 function populateTable(reviewerData) {
   const tbody = document.getElementById('full-reviewers-body');
-  tbody.innerHTML = reviewerData.slice(0, 50).map((reviewer, index) => {
+  tbody.innerHTML = reviewerData.slice(0, 100).map((reviewer, index) => {
     const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
     const reviewerUrl = getReviewerUrl(reviewer.name || '', reviewer.institution || '');
     
