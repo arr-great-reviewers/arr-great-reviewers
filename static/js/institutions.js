@@ -112,10 +112,23 @@ function updateInstitutionStats(institutionData) {
     document.getElementById('top-institution-name').textContent = topInst.institution;
     document.getElementById('top-institution-count').textContent = `${topInst.recognized} recognized reviews`;
     
-    // Calculate average (simplified since we don't have total reviews)
+    // Calculate average recognized reviews per institution
     const totalRecognized = institutionData.reduce((sum, inst) => sum + (inst.recognized || 0), 0);
     const avgRecognized = (totalRecognized / institutionData.length).toFixed(1);
-    document.getElementById('avg-recognition-rate').textContent = avgRecognized;
+    document.getElementById('avg-recognized-reviews').textContent = avgRecognized;
+    
+    // Calculate macro average recognition rate across institutions
+    const institutionsWithRates = institutionData.filter(inst => inst.reviewed && inst.reviewed > 0);
+    if (institutionsWithRates.length > 0) {
+      const totalRecognitionRate = institutionsWithRates.reduce((sum, inst) => {
+        const rate = (inst.recognized || 0) / inst.reviewed;
+        return sum + rate;
+      }, 0);
+      const macroAvgRate = (totalRecognitionRate / institutionsWithRates.length * 100).toFixed(1);
+      document.getElementById('macro-avg-recognition-rate').textContent = `${macroAvgRate}%`;
+    } else {
+      document.getElementById('macro-avg-recognition-rate').textContent = '-';
+    }
   }
 }
 
