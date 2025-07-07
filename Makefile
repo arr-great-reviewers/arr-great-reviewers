@@ -51,9 +51,9 @@ metrics:
 site:
 	$(PY) -m src.build_site
 
-# Fast site build: skip all reviewer pages
+# Fast site build: skip all reviewer and institution pages
 site-fast:
-	$(PY) -m src.build_site --skip-reviewers
+	$(PY) -m src.build_site --skip-reviewers --skip-institutions
 
 # Single reviewer site build: generate only Marek_Suppa1 reviewer page
 site-single-reviewer:
