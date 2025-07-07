@@ -89,5 +89,20 @@
   </div>
 </div>
 
-<script src="/assets/js/institutions.js"></script>
+<script src="/assets/js/table-utils.js"></script>
+<script src="/assets/js/institutions-common.js"></script>
+<script>
+// Initialize the institution page manager for all-cycles data
+document.addEventListener('DOMContentLoaded', () => {
+  const institutionManager = new InstitutionPageManager({
+    maxTableRows: 100  // All-cycles pages show 100 rows
+  });
+  
+  institutionManager.initialize({
+    cycle: null,  // null means all cycles
+    loadCharts: true,
+    loadStats: true
+  });
+});
+</script>
 {% endblock %}

@@ -88,190 +88,22 @@
   </div>
 </div>
 
+<script src="/assets/js/table-utils.js"></script>
+<script src="/assets/js/institutions-common.js"></script>
 <script>
 const cycle = '{{ cycle_id }}';
 
-// Load institution database to get URL-safe IDs
-let institutionIdMap = {};
-
-// Function to get URL-safe institution ID 
-function getInstitutionUrl(institutionName) {
-  return institutionIdMap[institutionName] || null;
-}
-
-// Fetch and display institution data
-Promise.all([
-  fetch(`/data/raw/${cycle}.json`).then(r => r.json()),
-  fetch('/data/institution_mappings.json').then(r => r.json()).catch(() => ({}))
-])
-  .then(([data, institutionMappings]) => {
-    // Build institution ID mapping
-    institutionIdMap = institutionMappings;
-    // Convert string values to numbers
-    const processedData = data.map(reviewer => ({
-      ...reviewer,
-      reviewed: parseInt(reviewer.reviewed) || 0,
-      recognized: parseInt(reviewer.recognized) || 0,
-      percentage: parseFloat(reviewer.percentage) || 0
-    }));
-
-    // Group by institution
-    const institutionMap = new Map();
-    
-    processedData.forEach(reviewer => {
-      const institution = reviewer.institution || 'Unknown';
-      if (!institutionMap.has(institution)) {
-        institutionMap.set(institution, {
-          institution: institution,
-          reviewers: new Set(),
-          totalReviews: 0,
-          recognizedReviews: 0
-        });
-      }
-      
-      const inst = institutionMap.get(institution);
-      inst.reviewers.add(reviewer.name || 'Anonymous');
-      inst.totalReviews += reviewer.reviewed;
-      inst.recognizedReviews += reviewer.recognized;
-    });
-    
-    // Convert to array and calculate metrics
-    const institutionData = Array.from(institutionMap.values()).map(inst => ({
-      institution: inst.institution,
-      reviewer_count: inst.reviewers.size,
-      reviewed: inst.totalReviews,
-      recognized: inst.recognizedReviews,
-      percentage: inst.totalReviews > 0 ? (inst.recognizedReviews / inst.totalReviews) * 100 : 0
-    }));
-    
-    // Sort by recognized reviews with tie-breaking by recognition rate, then by total reviews
-    institutionData.sort((a, b) => {
-      if (b.recognized !== a.recognized) return b.recognized - a.recognized;
-      const rateA = a.reviewed > 0 ? a.recognized / a.reviewed : 0;
-      const rateB = b.reviewed > 0 ? b.recognized / b.reviewed : 0;
-      if (rateB !== rateA) return rateB - rateA;
-      return b.reviewed - a.reviewed;
-    });
-    
-    // Update stats
-    document.getElementById('total-institutions').textContent = institutionData.length.toLocaleString();
-    
-    if (institutionData.length > 0) {
-      const topInst = institutionData[0];
-      document.getElementById('top-institution-name').textContent = topInst.institution;
-      document.getElementById('top-institution-count').textContent = `${topInst.recognized} recognized reviews`;
-      
-      // Calculate average recognized reviews per institution
-      const totalRecognized = institutionData.reduce((sum, inst) => sum + (inst.recognized || 0), 0);
-      const avgRecognized = (totalRecognized / institutionData.length).toFixed(1);
-      document.getElementById('avg-recognized-reviews').textContent = avgRecognized;
-      
-      // Calculate macro average recognition rate across institutions
-      const institutionsWithRates = institutionData.filter(inst => inst.reviewed && inst.reviewed > 0);
-      if (institutionsWithRates.length > 0) {
-        const totalRecognitionRate = institutionsWithRates.reduce((sum, inst) => {
-          const rate = (inst.recognized || 0) / inst.reviewed;
-          return sum + rate;
-        }, 0);
-        const macroAvgRate = (totalRecognitionRate / institutionsWithRates.length * 100).toFixed(1);
-        document.getElementById('macro-avg-recognition-rate').textContent = `${macroAvgRate}%`;
-      } else {
-        document.getElementById('macro-avg-recognition-rate').textContent = '-';
-      }
-    }
-    
-    // Create bar chart
-    const topData = institutionData.slice(0, 20);
-    const names = topData.map(d => d.institution);
-    const values = topData.map(d => d.recognized || 0);
-    
-    const trace = {
-      x: names,
-      y: values,
-      type: 'bar',
-      marker: {
-        color: values.map((v, i) => {
-          const gradient = `rgba(59, 130, 246, ${0.9 - (i * 0.03)})`;
-          return gradient;
-        }),
-        line: {
-          color: '#2563eb',
-          width: 1
-        }
-      },
-      text: values.map(v => v.toString()),
-      textposition: 'outside',
-      hovertemplate: '<b>%{x}</b><br>Recognized Reviews: %{y}<extra></extra>'
-    };
-    
-    const layout = {
-      xaxis: {
-        title: 'Institution',
-        tickangle: -45
-      },
-      yaxis: {
-        title: 'Number of Recognized Reviews'
-      },
-      margin: {
-        l: 60,
-        r: 30,
-        t: 30,
-        b: 150
-      },
-      paper_bgcolor: 'transparent',
-      plot_bgcolor: 'transparent',
-      font: {
-        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        size: 12,
-        color: '#64748b'
-      },
-      showlegend: false
-    };
-    
-    const config = {
-      responsive: true,
-      displayModeBar: false
-    };
-    
-    Plotly.newPlot('inst_abs', [trace], layout, config);
-    
-    // Populate table
-    const tbody = document.getElementById('institutions-body');
-    tbody.innerHTML = institutionData.slice(0, 50).map((inst, index) => {
-      const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
-      const institutionUrl = getInstitutionUrl(inst.institution);
-      
-      // Create name cell with or without link based on institution URL availability
-      const nameCell = institutionUrl 
-        ? `<strong><a href="/institution/${institutionUrl}/" class="institution-link">${inst.institution}</a></strong>`
-        : `<strong>${inst.institution}</strong>`;
-      
-      return `
-        <tr class="animate-fade-in" style="animation-delay: ${Math.min(index * 0.02, 0.5)}s">
-          <td><span class="rank-badge ${rankClass}">${index + 1}</span></td>
-          <td>${nameCell}</td>
-          <td>${inst.reviewer_count || '-'}</td>
-          <td>${inst.reviewed || '-'}</td>
-          <td><strong>${inst.recognized || '-'}</strong></td>
-          <td>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <div class="progress-bar" style="flex: 1;">
-                <div class="progress-fill" style="width: ${(inst.reviewed && inst.reviewed > 0) ? Math.min(((inst.recognized || 0) / inst.reviewed) * 100, 100) : 0}%"></div>
-              </div>
-              <span style="font-size: 0.875rem; color: var(--text-secondary);">${(inst.reviewed && inst.reviewed > 0) ? (((inst.recognized || 0) / inst.reviewed) * 100).toFixed(1) + '%' : '-'}</span>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-    
-    // Make table sortable
-    makeSortable('institutions-table');
-  })
-  .catch(err => {
-    console.error('Error loading institution data:', err);
-    document.getElementById('inst_abs').innerHTML = 
-      '<p style="text-align: center; color: var(--text-secondary);">Unable to load institution data</p>';
+// Initialize the institution page manager and load cycle-specific data
+document.addEventListener('DOMContentLoaded', () => {
+  const institutionManager = new InstitutionPageManager({
+    maxTableRows: 50  // Cycle pages show 50 rows instead of 100
   });
+  
+  institutionManager.initialize({
+    cycle: cycle,
+    loadCharts: true,
+    loadStats: true
+  });
+});
 </script>
 {% endblock %}
