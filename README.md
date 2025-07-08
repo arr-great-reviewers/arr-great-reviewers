@@ -1,10 +1,10 @@
 # ARR Great Reviewers
 
-Most reviews get written, submitted, and forgotten. But across all ARR cycles where Area Chairs have awarded "Great Review" recognitions, thousands of reviews were so helpful that they received this distinction. Yet these recognitions get buried at the bottom of stats pages, and the amazing reviewers behind them remain invisible.
+Most reviews get written, submitted, and forgotten. But across all ARR cycles, thousands of reviews were so exceptional that Area Chairs flagged them as "Great Reviews." These aren't participation trophies -- they're the reviews that saved papers from rejection, caught fatal flaws others missed, or suggested the key experiment that made everything click. Yet these recognitions end up buried at the bottom of stats pages while the reviewers who wrote them remain invisible.
 
-**ARR Great Reviewers** finally gives credit where it's due. This open-source project recognizes outstanding peer reviewers in ACL Rolling Review by collecting public statistics, computing comprehensive metrics, and publishing an interactive website that celebrates excellence in academic peer review.
+**ARR Great Reviewers** brings together all the "Great Review" recognitions from across ARR's cycle pages into one place. It allows reviewers to see their cumulative impact -- how many authors they've helped, how their reviewing has evolved, and where they stand among peers. It's a small way to acknowledge those who pour effort into making others' research better.
 
-Great reviews transform papers - they clarify murky ideas, identify crucial gaps, and push our field forward. Yet reviewers rarely get thanked for this essential work. This project is a way of saying what authors often think but rarely say: **thank you** to the reviewers who make our research better.
+The entire analysis is transparent and open-source, with code available in this repository, covering all ARR cycles where "Great Review" data is available.
 
 ## Quick start
 
