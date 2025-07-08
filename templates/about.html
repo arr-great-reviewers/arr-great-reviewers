@@ -29,36 +29,34 @@
   <h2>About ARR Great Reviewers</h2>
   <div class="about-content">
     
-    <h3>Our Motivation</h3>
-    <p>Most reviews get written, submitted, and forgotten. But across all ARR cycles where Area Chairs have awarded "Great Review" recognitions, thousands of reviews were so helpful that they received this distinction. Yet these recognitions get buried at the bottom of stats pages, and the amazing reviewers behind them remain invisible.</p>
-    
-    <p>You know how Area Chairs can mark "Great Reviews"? These recognitions are tracked in ARR's public statistics, but the outstanding reviewers who consistently deliver exceptional reviews rarely get the credit they deserve. That's why we built <strong>ARR Great Reviewers</strong> - to finally give credit where it's due.</p>
+    <h3 id="motivation">Motivation <a href="#motivation" class="anchor-link" aria-label="Link to Motivation section">#</a></h3>
+    <p>Most reviews get written, submitted, and forgotten. But across all ARR cycles, thousands of reviews were so exceptional that Area Chairs flagged them as "Great Reviews." These aren't participation trophies -- they're the reviews that saved papers from rejection, caught fatal flaws others missed, or suggested the key experiment that made everything click. Yet these recognitions end up buried at the bottom of stats pages while the reviewers who wrote them remain invisible.</p>
     
     {% include "great_review_banner.html" %}
     
-    <p>Great reviews can transform a paper - they clarify murky ideas, identify crucial gaps, and push our field forward. Yet reviewers rarely get thanked for this essential work. This project is a way of saying what authors often think but rarely say: <strong>thank you</strong> to the reviewers who make our research better.</p>
+    <p><strong>ARR Great Reviewers</strong> brings together all the "Great Review" recognitions from across ARR's cycle pages into one place. It allows reviewers to see their cumulative impact -- how many authors they've helped, how their reviewing has evolved, and where they stand among peers. It's a small way to acknowledge those who pour effort into making others' research better.</p>
     
     <p>The entire analysis is transparent and open-source, with code available at <a href="https://github.com/arr-great-reviewers/arr-great-reviewers">GitHub</a>, covering all ARR cycles where "Great Review" data is available.</p>
     
-    <h3>Methodology</h3>
+    <h3 id="methodology">Methodology <a href="#methodology" class="anchor-link" aria-label="Link to Methodology section">#</a></h3>
     <p>This section explains the data collection and processing for ARR great reviewers.</p>
     
-    <h4>Data Collection</h4>
+    <h4 id="data-collection">Data Collection <a href="#data-collection" class="anchor-link" aria-label="Link to Data Collection section">#</a></h4>
     <p>The dataset comes from the ACL Rolling Review public statistics endpoints. We fetch JSON files for each iteration listed in <code>config/data_sources.toml</code>. Each entry includes reviewer name, institution, counts of reviews and recognized reviews, and the percentage of recognized reviews.</p>
     
     <p>Downloaded files are validated against a reference schema and stored under <code>data/raw/</code>. We then concatenate these files and clean numeric fields to build a unified DataFrame. Aggregations produce metrics for top reviewers and institutions which are exported as JSON under <code>data/metrics/</code>. These metrics feed the static site visualisations.</p>
     
-    <h4>Ranking and Tie-Breaking</h4>
+    <h4 id="ranking-and-tie-breaking">Ranking and Tie-Breaking <a href="#ranking-and-tie-breaking" class="anchor-link" aria-label="Link to Ranking and Tie-Breaking section">#</a></h4>
     <p>When ranking reviewers and institutions, ties are resolved using the following hierarchy:</p>
     
-    <h5>For Recognition Count Rankings:</h5>
+    <h5 id="recognition-count-rankings">For Recognition Count Rankings: <a href="#recognition-count-rankings" class="anchor-link" aria-label="Link to Recognition Count Rankings section">#</a></h5>
     <ol>
       <li><strong>Primary</strong>: Total number of recognized reviews (descending)</li>
       <li><strong>Tie-breaker 1</strong>: Recognition rate (recognized/total reviews) (descending)</li>
       <li><strong>Tie-breaker 2</strong>: Total number of reviews (descending)</li>
     </ol>
     
-    <h5>For Recognition Rate Rankings:</h5>
+    <h5 id="recognition-rate-rankings">For Recognition Rate Rankings: <a href="#recognition-rate-rankings" class="anchor-link" aria-label="Link to Recognition Rate Rankings section">#</a></h5>
     <ol>
       <li><strong>Primary</strong>: Recognition percentage (descending)</li>
       <li><strong>Tie-breaker 1</strong>: Total number of recognized reviews (descending)</li>
@@ -67,13 +65,13 @@
     
     <p>This ensures consistent and fair rankings where reviewers with identical primary metrics are ordered by meaningful secondary criteria that reflect their overall contribution and review volume.</p>
     
-    <h4>Data Quality</h4>
+    <h4 id="data-quality">Data Quality <a href="#data-quality" class="anchor-link" aria-label="Link to Data Quality section">#</a></h4>
     <p>We match reviewers across cycles using their OpenReview IDs to handle name changes and typos. When someone changes institutions, we use their current affiliation but count all their past reviews.</p>
     
     <p>We only rank reviewers with at least 5 total reviews and institutions with at least 3 reviewers. This reduces noise from small samples.</p>
     
     
-    <h4>What This Doesn't Capture</h4>
+    <h4 id="what-this-doesnt-capture">What This Doesn't Capture <a href="#what-this-doesnt-capture" class="anchor-link" aria-label="Link to What This Doesn't Capture section">#</a></h4>
     <ul>
       <li>Review quality beyond ARR's "recognition" metric</li>
       <li>Reviewers who don't use ARR</li>
@@ -81,15 +79,15 @@
       <li>Differences between research areas or reviewer experience levels</li>
     </ul>
     
-    <h4>Privacy</h4>
+    <h4 id="privacy">Privacy <a href="#privacy" class="anchor-link" aria-label="Link to Privacy section">#</a></h4>
     <p>All data comes from public ARR statistics. Reviewers can ask ARR organizers to opt out of future rankings.</p>
     
-    <h4>Limitations</h4>
-    <p>ARR defines "recognized" reviews internally - we don't control this criteria. Our data only goes back to April 2024 and only covers ARR participants.</p>
+    <h4 id="limitations">Limitations <a href="#limitations" class="anchor-link" aria-label="Link to Limitations section">#</a></h4>
+    <p>ARR defines "recognized" reviews internally -- we don't control this criteria. Our data only goes back to April 2024 and only covers ARR participants.</p>
     
     <p>Recognition doesn't equal review quality. A helpful review might not be "recognized" and vice versa.</p>
     
-    <h4>Reproducibility</h4>
+    <h4 id="reproducibility">Reproducibility <a href="#reproducibility" class="anchor-link" aria-label="Link to Reproducibility section">#</a></h4>
     <p>Raw data files and processing code are available on <a href="https://github.com/arr-great-reviewers/arr-great-reviewers">GitHub</a>. Data schemas are validated on download, and the entire analysis pipeline is open-source and reproducible.</p>
   </div>
 </div>
@@ -163,5 +161,59 @@
 .about-content a:hover {
   text-decoration: underline;
 }
+
+/* Anchor link styles */
+.anchor-link {
+  opacity: 0;
+  margin-left: 0.5rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: normal;
+  font-size: 0.9em;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+h3:hover .anchor-link,
+h4:hover .anchor-link,
+h5:hover .anchor-link,
+.anchor-link:focus {
+  opacity: 1;
+}
+
+.anchor-link:hover {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+
+/* Smooth scrolling for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Add some scroll margin to account for any fixed headers */
+h3[id], h4[id], h5[id] {
+  scroll-margin-top: 1rem;
+}
 </style>
+
+<script>
+// Ensure anchor links update the URL
+document.addEventListener('DOMContentLoaded', function() {
+  const anchorLinks = document.querySelectorAll('.anchor-link');
+  anchorLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = this.getAttribute('href');
+      const element = document.querySelector(target);
+      if (element) {
+        // Update URL without triggering a page reload
+        history.pushState(null, null, target);
+        // Smooth scroll to element
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+});
+</script>
 {% endblock %}
