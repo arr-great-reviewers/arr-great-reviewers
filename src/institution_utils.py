@@ -157,7 +157,7 @@ def build_institution_database() -> Dict[str, Dict]:
             institution_reviewers,
             key=lambda x: (x["total_recognized"], x["recognition_rate"]),
             reverse=True,
-        )[:10]  # Top 10 reviewers
+        )  # All reviewers, sorted by performance
 
         # Calculate overall recognition rate
         overall_recognition_rate = (
