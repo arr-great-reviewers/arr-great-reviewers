@@ -34,6 +34,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Header Styles */
@@ -243,12 +244,14 @@ main {
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
   margin-bottom: 3rem;
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 .stat-card {
@@ -258,6 +261,8 @@ main {
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
   border: 1px solid var(--border-color);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .stat-card:hover {
@@ -271,6 +276,10 @@ main {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.2;
 }
 
 .stat-card .value {
@@ -278,11 +287,36 @@ main {
   font-weight: 700;
   color: var(--primary-color);
   margin-bottom: 0.5rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .stat-card .change {
   font-size: 0.875rem;
   color: var(--success-color);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Institution Profile Stats */
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.5rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.2;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Content Section */
@@ -697,15 +731,18 @@ footer a:hover {
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: white;
-  padding: 0.5rem;
+  padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 500;
   min-width: 44px;
   min-height: 44px;
+  font-size: inherit;
+  font-family: inherit;
 }
 
 .nav-search-toggle:hover {
@@ -1192,7 +1229,6 @@ footer a:hover {
   
   .nav-search-toggle::after {
     content: 'Find Your Profile';
-    font-size: 0.875rem;
   }
   
   .nav-search-toggle:hover {
@@ -1277,8 +1313,9 @@ footer a:hover {
     font-size: 1rem;
   }
   
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  .stats-grid,
+  .profile-header .stats-grid {
+    grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 2rem;
   }
@@ -1290,6 +1327,8 @@ footer a:hover {
   
   .stat-card .value {
     font-size: 2rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
   
   .content-section {
@@ -1446,7 +1485,8 @@ footer a:hover {
     font-size: 1.25rem;
   }
   
-  .stats-grid {
+  .stats-grid,
+  .profile-header .stats-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
   }
@@ -1455,8 +1495,27 @@ footer a:hover {
     padding: 1rem;
   }
   
+  .stat-card h3 {
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+  }
+  
   .stat-card .value {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .stat-card .change {
+    font-size: 0.75rem;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+  
+  .stat-number {
+    font-size: 2rem;
   }
   
   .content-section {
@@ -1498,6 +1557,151 @@ footer a:hover {
   
   .cycle-link, .cycle-current {
     padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Very small screens (below 360px) */
+@media (max-width: 360px) {
+  .stats-grid,
+  .profile-header .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-card {
+    padding: 0.75rem;
+    min-width: 0;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.7rem;
+    letter-spacing: 0.01em;
+  }
+  
+  .stat-card .value {
+    font-size: 1.25rem;
+  }
+  
+  .stat-card .change {
+    font-size: 0.7rem;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.01em;
+  }
+  
+  .stat-number {
+    font-size: 1.25rem;
+  }
+  
+  main {
+    padding: 1.5rem 0.5rem;
+  }
+  
+  .hero-section {
+    padding: 1.25rem 0.75rem;
+  }
+  
+  .content-section {
+    padding: 0.75rem;
+  }
+}
+
+/* Extra small screens (below 350px) */
+@media (max-width: 350px) {
+  /* Force single column for all stats grids */
+  .stats-grid,
+  .profile-header .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .stat-card {
+    padding: 0.625rem;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.65rem;
+    letter-spacing: 0;
+  }
+  
+  .stat-card .value {
+    font-size: 1.1rem;
+  }
+  
+  .stat-card .change {
+    font-size: 0.65rem;
+  }
+  
+  .stat-label {
+    font-size: 0.65rem;
+    letter-spacing: 0;
+  }
+  
+  .stat-number {
+    font-size: 1.1rem;
+  }
+  
+  .hero-section h2 {
+    font-size: 1.1rem;
+  }
+  
+  .hero-section p {
+    font-size: 0.875rem;
+  }
+}
+
+/* Ultra small screens (below 320px) */
+@media (max-width: 320px) {
+  .stats-grid,
+  .profile-header .stats-grid {
+    gap: 0.5rem;
+    grid-template-columns: 1fr !important;
+  }
+  
+  .stat-card {
+    padding: 0.5rem;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.55rem;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  
+  .stat-card .value {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .stat-card .change {
+    font-size: 0.6rem;
+  }
+  
+  .stat-label {
+    font-size: 0.55rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  
+  .stat-number {
+    font-size: 1rem;
+  }
+  
+  main {
+    padding: 1rem 0.25rem;
+  }
+  
+  .hero-section {
+    padding: 1rem 0.5rem;
+  }
+  
+  .hero-section h2 {
+    font-size: 1rem;
+  }
+  
+  .hero-section p {
     font-size: 0.8rem;
   }
 }
