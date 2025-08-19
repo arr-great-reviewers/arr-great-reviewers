@@ -213,9 +213,7 @@ def build_site(
         if single_reviewer in reviewer_db:
             print(f"Generating single reviewer page for {single_reviewer}...")
             url_safe_id = (
-                single_reviewer.replace("~", "")
-                .replace("/", "-")
-                .replace("\\", "-")
+                single_reviewer.replace("~", "").replace("/", "-").replace("\\", "-")
             )
             # Add institution URL-safe ID to reviewer data
             reviewer_data = reviewer_db[single_reviewer].copy()
@@ -267,9 +265,7 @@ def build_site(
                 SITE / "institution" / single_institution / "index.html",
             )
         else:
-            print(
-                f"Warning: Institution {single_institution} not found in database"
-            )
+            print(f"Warning: Institution {single_institution} not found in database")
     else:
         print("Skipping institution pages generation...")
 

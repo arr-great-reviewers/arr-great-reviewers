@@ -288,33 +288,38 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 }
             )
 
-    # Calculate cycle-specific rankings
-    all_cycles = set()
-    for reviewer in reviewer_db.values():
-        all_cycles.update(reviewer["cycles"].keys())
+    # Calculate cycle-specific rankings using raw data (same as frontend)
+    data_dir = Path("data/raw")
+    if not data_dir.exists():
+        print("No raw data directory found for cycle rankings")
+        return reviewer_db
 
-    for cycle in all_cycles:
-        # Get reviewers active in this cycle
-        cycle_reviewers = []
-        for reviewer in reviewer_db.values():
-            if cycle in reviewer["cycles"]:
-                cycle_reviewers.append((reviewer, reviewer["cycles"][cycle]))
+    for cycle_file in sorted(data_dir.glob("*.json")):
+        cycle = cycle_file.stem
 
-        # Sort by recognized reviews in this cycle - Recognition Count Rankings tie-breaking
-        cycle_ranking = sorted(
-            cycle_reviewers,
-            key=lambda x: (
-                x[1]["recognized"],
-                x[1]["percentage"] / 100,
-                x[1]["reviewed"],
-            ),
-            reverse=True,
-        )
+        # Load raw cycle data (same source as frontend)
+        with cycle_file.open("r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+
+        # Use shared ranking logic
+        cycle_ranking = process_and_rank_cycle_data(raw_data)
 
         # Assign cycle-specific badges
-        for i, (reviewer, cycle_data) in enumerate(cycle_ranking):
-            unique_id = reviewer["unique_id"]
+        for i, reviewer_data in enumerate(cycle_ranking):
             rank = i + 1
+
+            # Find this reviewer in the database to assign achievement
+            reviewer_found = False
+            for unique_id, reviewer in reviewer_db.items():
+                if (
+                    reviewer["name"] == reviewer_data["name"]
+                    and reviewer.get("institution", "") == reviewer_data["institution"]
+                ):
+                    reviewer_found = True
+                    break
+
+            if not reviewer_found:
+                continue
 
             if rank == 1:
                 reviewer_db[unique_id]["achievements"].append(
@@ -400,6 +405,74 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
     return reviewer_db
 
 
+def process_and_rank_cycle_data(raw_data: list) -> list:
+    """
+    Process and rank reviewer data using consistent sorting criteria.
+    This ensures frontend and backend use identical ranking logic.
+    """
+    # Normalize data
+    processed_data = []
+    for reviewer in raw_data:
+        processed_reviewer = {
+            "name": reviewer.get("name", ""),
+            "institution": reviewer.get("institution", ""),
+            "reviewed": int(reviewer.get("reviewed", 0)),
+            "recognized": int(reviewer.get("recognized", 0)),
+            "percentage": float(reviewer.get("percentage", 0.0)),
+        }
+        processed_data.append(processed_reviewer)
+
+    # Sort by recognition count with consistent tie-breaking
+    processed_data.sort(
+        key=lambda x: (
+            x["recognized"],  # Primary: recognition count
+            x["percentage"] / 100
+            if x["reviewed"] > 0
+            else 0,  # Secondary: recognition rate
+            x["reviewed"],  # Tertiary: total reviews
+            x["name"].lower(),  # Quaternary: alphabetical
+        ),
+        reverse=True,
+    )
+
+    return processed_data
+
+
+def generate_cycle_reviewer_files() -> None:
+    """
+    Generate pre-ranked reviewer data files for each cycle.
+    This eliminates the need for JavaScript to process raw data.
+    """
+    print("Generating cycle-specific reviewer ranking files...")
+
+    # Load all raw cycle data
+    data_dir = Path("data/raw")
+    if not data_dir.exists():
+        print("No raw data directory found. Run 'make data' first.")
+        return
+
+    metrics_dir = Path("data/metrics")
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+
+    # Process each cycle file
+    for cycle_file in sorted(data_dir.glob("*.json")):
+        cycle_name = cycle_file.stem
+
+        # Load and process raw data for this cycle
+        with cycle_file.open("r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+
+        # Use shared ranking logic
+        processed_data = process_and_rank_cycle_data(raw_data)
+
+        # Save to cycle-specific file
+        output_file = metrics_dir / f"reviewers_{cycle_name}.json"
+        with output_file.open("w", encoding="utf-8") as f:
+            json.dump(processed_data, f, ensure_ascii=False, indent=2)
+
+        print(f"  Generated {output_file} with {len(processed_data)} reviewers")
+
+
 def generate_reviewer_data() -> None:
     """
     Generate the complete reviewer database with unique IDs and achievements.
@@ -410,6 +483,9 @@ def generate_reviewer_data() -> None:
 
     print("Calculating achievements...")
     reviewer_db = calculate_achievements(reviewer_db)
+
+    # Generate cycle-specific ranking files
+    generate_cycle_reviewer_files()
 
     # Save to file
     output_file = Path("data/reviewers_database.json")

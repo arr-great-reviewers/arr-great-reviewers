@@ -64,21 +64,17 @@ class ReviewerPageManager {
    * Loads data for a specific cycle
    */
   async loadCycleData(cycle, loadCharts = true) {
-    const [rawData, reviewerDatabase] = await Promise.all([
-      fetch(`/data/raw/${cycle}.json`).then(r => r.json()),
+    const [sortedData, reviewerDatabase] = await Promise.all([
+      fetch(`/data/metrics/reviewers_${cycle}.json`).then(r => r.json()),
       fetch('/data/reviewers_database.json').then(r => r.json()).catch(() => ({}))
     ]);
-
-    // Process and sort the raw cycle data
-    const processedData = TableUtils.DataUtils.normalizeDataArray(rawData);
-    const sortedData = TableUtils.TableSorters.byRecognitionCount(processedData);
 
     this.setupReviewerDatabase(reviewerDatabase);
     this.populateReviewerTable(sortedData);
     
     if (loadCharts) {
       this.createRecognitionChart(sortedData, 'rev_abs');
-      this.createPercentageChartFromData(processedData, 'rev_pct');
+      this.createPercentageChartFromData(sortedData, 'rev_pct');
     }
   }
 

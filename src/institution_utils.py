@@ -89,22 +89,22 @@ def build_institution_database() -> Dict[str, Dict]:
     for inst_data in institutions_data:
         inst_name = inst_data["institution"]
         url_safe_id = institution_name_to_url_safe_id(inst_name)
-        
+
         if url_safe_id not in institution_groups:
             institution_groups[url_safe_id] = []
         institution_groups[url_safe_id].append(inst_data)
-    
+
     # Now process each group, merging institutions with the same URL-safe ID
     for url_safe_id, inst_group in institution_groups.items():
         # Merge data from all institutions in this group
         total_recognized = sum(inst["recognized"] for inst in inst_group)
         total_reviewed = sum(inst["reviewed"] for inst in inst_group)
         total_reviewer_count = sum(inst["reviewer_count"] for inst in inst_group)
-        
+
         # Use the name from the institution with the most recognized reviews
         primary_inst = max(inst_group, key=lambda x: x["recognized"])
         merged_name = primary_inst["institution"]
-        
+
         # Get all institution names for reviewer matching
         all_inst_names = [inst["institution"] for inst in inst_group]
 
@@ -174,7 +174,9 @@ def build_institution_database() -> Dict[str, Dict]:
             "top_reviewers": top_reviewers,
             "cycles": cycles,
             "achievements": [],
-            "name_variations": sorted(list(set(all_inst_names))),  # All institution name variations
+            "name_variations": sorted(
+                list(set(all_inst_names))
+            ),  # All institution name variations
         }
 
     return institution_db
@@ -393,6 +395,52 @@ def calculate_institution_achievements(
     return institution_db
 
 
+def generate_cycle_institution_files(institution_db: Dict[str, Dict]) -> None:
+    """
+    Generate pre-ranked institution data files for each cycle.
+    This eliminates the need for JavaScript to aggregate raw data.
+    """
+    print("Generating cycle-specific institution ranking files...")
+
+    # Get all cycles
+    all_cycles = set()
+    for institution in institution_db.values():
+        all_cycles.update(institution["cycles"].keys())
+
+    metrics_dir = Path("data/metrics")
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+
+    for cycle in sorted(all_cycles):
+        # Get institutions active in this cycle
+        cycle_institutions = []
+        for institution in institution_db.values():
+            if cycle in institution["cycles"]:
+                cycle_data = institution["cycles"][cycle]
+                cycle_institutions.append(
+                    {
+                        "institution": institution["name"],
+                        "reviewer_count": cycle_data["reviewer_count"],
+                        "reviewed": cycle_data["reviewed"],
+                        "recognized": cycle_data["recognized"],
+                        "recognition_rate": cycle_data["recognition_rate"],
+                        "percentage": cycle_data["recognition_rate"] * 100,
+                    }
+                )
+
+        # Sort by same criteria as Python ranking logic
+        cycle_institutions.sort(
+            key=lambda x: (x["recognized"], x["recognition_rate"], x["reviewed"]),
+            reverse=True,
+        )
+
+        # Save to cycle-specific file
+        output_file = metrics_dir / f"institutions_{cycle}.json"
+        with output_file.open("w", encoding="utf-8") as f:
+            json.dump(cycle_institutions, f, ensure_ascii=False, indent=2)
+
+        print(f"  Generated {output_file} with {len(cycle_institutions)} institutions")
+
+
 def generate_institution_data() -> None:
     """
     Generate the complete institution database with unique IDs and achievements.
@@ -403,6 +451,9 @@ def generate_institution_data() -> None:
 
     print("Calculating achievements...")
     institution_db = calculate_institution_achievements(institution_db)
+
+    # Generate cycle-specific ranking files
+    generate_cycle_institution_files(institution_db)
 
     # Save to file
     output_file = Path("data/institutions_database.json")

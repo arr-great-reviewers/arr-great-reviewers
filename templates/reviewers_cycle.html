@@ -79,7 +79,7 @@ const cycle = '{{ cycle_id }}';
 // Initialize the reviewer page manager and load cycle-specific data
 document.addEventListener('DOMContentLoaded', () => {
   const reviewerManager = new ReviewerPageManager({
-    maxTableRows: 50  // Cycle pages show 50 rows instead of 100
+    maxTableRows: 100  // Cycle pages show 100 rows
   });
   
   reviewerManager.initialize({

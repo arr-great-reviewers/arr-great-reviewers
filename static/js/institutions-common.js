@@ -75,15 +75,12 @@ class InstitutionPageManager {
    * Loads data for a specific cycle
    */
   async loadCycleData(cycle, loadCharts = true, loadStats = true) {
-    const [rawData, institutionMappings] = await Promise.all([
-      fetch(`/data/raw/${cycle}.json`).then(r => r.json()),
+    const [institutionData, institutionMappings] = await Promise.all([
+      fetch(`/data/metrics/institutions_${cycle}.json`).then(r => r.json()),
       fetch('/data/institution_mappings.json').then(r => r.json()).catch(() => ({}))
     ]);
 
     this.institutionIdMap = institutionMappings;
-
-    // Process the raw cycle data into institution aggregates
-    const institutionData = this.aggregateByInstitution(rawData);
     
     if (loadStats) {
       this.updateInstitutionStats(institutionData);
@@ -96,44 +93,6 @@ class InstitutionPageManager {
     this.populateInstitutionTable(institutionData);
   }
 
-  /**
-   * Aggregates reviewer data by institution
-   */
-  aggregateByInstitution(reviewerData) {
-    const processedData = TableUtils.DataUtils.normalizeDataArray(reviewerData);
-    
-    // Group by institution
-    const institutionMap = new Map();
-    
-    processedData.forEach(reviewer => {
-      const institution = reviewer.institution || 'Unknown';
-      if (!institutionMap.has(institution)) {
-        institutionMap.set(institution, {
-          institution: institution,
-          reviewers: new Set(),
-          reviewed: 0,
-          recognized: 0
-        });
-      }
-      
-      const inst = institutionMap.get(institution);
-      inst.reviewers.add(reviewer.name || 'Anonymous');
-      inst.reviewed += reviewer.reviewed;
-      inst.recognized += reviewer.recognized;
-    });
-    
-    // Convert to array and calculate metrics
-    const institutionData = Array.from(institutionMap.values()).map(inst => ({
-      institution: inst.institution,
-      reviewer_count: inst.reviewers.size,
-      reviewed: inst.reviewed,
-      recognized: inst.recognized,
-      percentage: inst.reviewed > 0 ? (inst.recognized / inst.reviewed) * 100 : 0
-    }));
-    
-    // Sort by recognition count with tie-breaking
-    return TableUtils.TableSorters.byRecognitionCount(institutionData);
-  }
 
   /**
    * Gets the URL for an institution profile

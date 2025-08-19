@@ -96,7 +96,7 @@ const cycle = '{{ cycle_id }}';
 // Initialize the institution page manager and load cycle-specific data
 document.addEventListener('DOMContentLoaded', () => {
   const institutionManager = new InstitutionPageManager({
-    maxTableRows: 50  // Cycle pages show 50 rows instead of 100
+    maxTableRows: 100  // Cycle pages show 100 rows
   });
   
   institutionManager.initialize({
