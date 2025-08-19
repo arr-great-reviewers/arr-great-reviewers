@@ -11,6 +11,8 @@
 #   site-fast               - Generate site excluding reviewer pages
 #   site-single-reviewer    - Generate site with only Marek Suppa reviewer page
 #   site-single-institution - Generate site with only Google institution page
+#   map-openreview          - Map all reviewers to OpenReview profiles
+#   map-openreview-incremental - Map only new reviewers to OpenReview profiles
 #
 # Fast development workflow:
 #   1. Use 'make build-fast' during development to avoid generating 2000+ reviewer pages
@@ -18,7 +20,7 @@
 #   3. Use 'make build-single-institution' to test institution page functionality
 #   4. Use 'make build' for final complete build
 
-.PHONY: build data metrics site site-fast site-single-reviewer site-single-institution build-fast build-single-reviewer build-single-institution
+.PHONY: build data metrics site site-fast site-single-reviewer site-single-institution build-fast build-single-reviewer build-single-institution map-openreview map-openreview-incremental
 
 VENV=.venv
 PY=$(VENV)/bin/python
@@ -62,3 +64,9 @@ site-single-reviewer:
 # Single institution site build: generate only Google institution page
 site-single-institution:
 	$(PY) -m src.build_site --single-institution "google"
+
+map-openreview: install
+	$(PY) -m src.map_openreview_profiles main
+
+map-openreview-incremental: install
+	$(PY) -m src.map_openreview_profiles incremental

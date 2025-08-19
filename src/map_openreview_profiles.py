@@ -12,7 +12,9 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 
-app = typer.Typer(help="Map reviewer names to OpenReview profiles")
+app = typer.Typer(
+    help="Map reviewer names to OpenReview profiles. Use 'incremental' to process only new reviewers."
+)
 console = Console()
 
 
@@ -333,6 +335,59 @@ def reprocess_no_matches(results: Dict, max_profiles: int = 30) -> Dict:
     return results
 
 
+def get_all_mapped_keys(results: Dict) -> set:
+    """Get all reviewer keys that have been mapped (in any category)"""
+    all_keys = set()
+
+    if "single_matches" in results:
+        all_keys.update(results["single_matches"].keys())
+    if "multiple_matches" in results:
+        all_keys.update(results["multiple_matches"].keys())
+    if "no_matches" in results:
+        all_keys.update(results["no_matches"].keys())
+
+    return all_keys
+
+
+def find_new_reviewers(reviewers: List[Dict], existing_results: Dict) -> List[Dict]:
+    """Find reviewers that haven't been processed yet"""
+    mapped_keys = get_all_mapped_keys(existing_results)
+    new_reviewers = []
+
+    for reviewer in reviewers:
+        name = reviewer.get("name", "")
+        institution = reviewer.get("institution", "")
+
+        if not name or not institution:
+            continue
+
+        key = f"{name}|{institution}"
+        if key not in mapped_keys:
+            new_reviewers.append(reviewer)
+
+    return new_reviewers
+
+
+def merge_mapping_results(existing_results: Dict, new_results: Dict) -> Dict:
+    """Merge new mapping results into existing results"""
+    merged = existing_results.copy()
+
+    # Update metadata
+    merged["metadata"]["total_processed"] += new_results["metadata"]["total_processed"]
+    merged["metadata"]["single_matches"] += new_results["metadata"]["single_matches"]
+    merged["metadata"]["multiple_matches"] += new_results["metadata"][
+        "multiple_matches"
+    ]
+    merged["metadata"]["no_matches"] += new_results["metadata"]["no_matches"]
+
+    # Merge each category
+    for category in ["single_matches", "multiple_matches", "no_matches"]:
+        if category in new_results:
+            merged[category].update(new_results[category])
+
+    return merged
+
+
 def display_summary(results: Dict):
     """Display summary table of results"""
     table = Table(title="OpenReview Profile Mapping Summary")
@@ -396,6 +451,109 @@ def reprocess(
     # Display updated summary
     console.print("[blue]Updated state:[/blue]")
     display_summary(updated_results)
+
+
+@app.command()
+def incremental(
+    data_dir: Path = typer.Option(
+        Path("data/raw"),
+        "--data-dir",
+        "-d",
+        help="Directory containing reviewer JSON files",
+    ),
+    results_file: Path = typer.Option(
+        Path("data/openreview_profile_mapping.json"),
+        "--results-file",
+        "-r",
+        help="Path to existing results JSON file",
+    ),
+    max_profiles: int = typer.Option(
+        30,
+        "--max-profiles",
+        "-m",
+        help="Maximum number of profile variants to try (1 to N)",
+    ),
+):
+    """Incrementally process only new reviewers not found in existing mapping results."""
+
+    if not data_dir.exists():
+        console.print(f"[red]Error: Data directory {data_dir} does not exist[/red]")
+        raise typer.Exit(1)
+
+    if not results_file.exists():
+        console.print(f"[red]Error: Results file {results_file} does not exist[/red]")
+        console.print(
+            "[blue]Hint: Run the main command first to generate initial results[/blue]"
+        )
+        raise typer.Exit(1)
+
+    # Load existing results
+    console.print(f"[blue]Loading existing results from {results_file}...[/blue]")
+    existing_results = load_existing_results(results_file)
+
+    if not existing_results:
+        raise typer.Exit(1)
+
+    # Load all reviewer data
+    console.print(f"[blue]Loading reviewer data from {data_dir}...[/blue]")
+    all_reviewers = load_reviewer_data(data_dir)
+
+    if not all_reviewers:
+        console.print("[red]No reviewer data found![/red]")
+        raise typer.Exit(1)
+
+    # Find new reviewers
+    console.print("[blue]Finding new reviewers...[/blue]")
+    new_reviewers = find_new_reviewers(all_reviewers, existing_results)
+
+    if not new_reviewers:
+        console.print(
+            "[bright_green]✓ No new reviewers found! All reviewers have been processed.[/bright_green]"
+        )
+        display_summary(existing_results)
+        return
+
+    console.print(
+        f"[yellow]Found {len(new_reviewers)} new reviewers to process[/yellow]"
+    )
+
+    # Display current summary
+    console.print("[blue]Current state:[/blue]")
+    display_summary(existing_results)
+
+    # Process only new reviewers
+    console.print(f"[blue]Processing {len(new_reviewers)} new reviewers...[/blue]")
+    new_results = map_profiles(new_reviewers, max_profiles)
+
+    # Merge with existing results
+    merged_results = merge_mapping_results(existing_results, new_results)
+
+    # Save merged results
+    with open(results_file, "w", encoding="utf-8") as f:
+        json.dump(merged_results, f, indent=2, ensure_ascii=False)
+
+    console.print(f"[green]Updated results saved to {results_file}[/green]")
+
+    # Display final summary
+    console.print("[blue]Final state after incremental processing:[/blue]")
+    display_summary(merged_results)
+
+    # Show what was newly processed
+    console.print(
+        f"\n[bright_green]🎉 Processed {len(new_reviewers)} new reviewers![/bright_green]"
+    )
+    if new_results["metadata"]["single_matches"] > 0:
+        console.print(
+            f"  • {new_results['metadata']['single_matches']} new single matches found"
+        )
+    if new_results["metadata"]["multiple_matches"] > 0:
+        console.print(
+            f"  • {new_results['metadata']['multiple_matches']} new multiple matches found"
+        )
+    if new_results["metadata"]["no_matches"] > 0:
+        console.print(
+            f"  • {new_results['metadata']['no_matches']} new entries with no matches"
+        )
 
 
 @app.command()
