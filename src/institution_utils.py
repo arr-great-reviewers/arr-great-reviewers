@@ -3,7 +3,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 
 
 def institution_name_to_url_safe_id(institution_name: str) -> str:
