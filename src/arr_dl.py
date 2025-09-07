@@ -50,7 +50,7 @@ def fetch(name: str, url: str) -> None:
 def download_all() -> None:
     sources = load_sources()
     print(f"Downloading {len(sources)} data files...")
-    
+
     # Try concurrent downloads first, fall back to sequential if SSL issues occur
     try:
         with ThreadPoolExecutor(max_workers=2) as pool:  # Reduced workers
@@ -63,9 +63,13 @@ def download_all() -> None:
             )
     except Exception as e:
         if "SSL" in str(e) or "ssl" in str(e).lower():
-            print(f"Concurrent download failed with SSL error, falling back to sequential downloads...")
+            print(
+                "Concurrent download failed with SSL error, falling back to sequential downloads..."
+            )
             # Fall back to sequential downloads
-            for name, url in track(sources.items(), description="Downloading (sequential)"):
+            for name, url in track(
+                sources.items(), description="Downloading (sequential)"
+            ):
                 try:
                     fetch(name, url)
                 except Exception as seq_e:

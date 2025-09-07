@@ -25,8 +25,12 @@ Makefile integration:
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
 import shutil
+import time
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any, Dict, Tuple
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -43,6 +47,100 @@ def render(template: str, context: dict, out: Path) -> None:
     tmpl = env.get_template(template)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(tmpl.render(**context), encoding="utf-8")
+
+
+def render_template_parallel(task_data: Tuple[str, Dict[str, Any], Path]) -> bool:
+    """Worker function for parallel template rendering"""
+    template_name, context, output_path = task_data
+
+    try:
+        # Each process gets its own Jinja2 environment
+        env = Environment(
+            loader=FileSystemLoader(str(TEMPLATES)),
+            autoescape=select_autoescape(["html", "xml"]),
+            cache_size=500,
+        )
+
+        template = env.get_template(template_name)
+        content = template.render(**context)
+
+        # Ensure directory exists (thread-safe with exist_ok=True)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write file atomically to prevent corruption
+        temp_path = output_path.with_suffix(".tmp")
+        temp_path.write_text(content, encoding="utf-8")
+        temp_path.replace(output_path)
+
+        return True
+
+    except Exception as e:
+        print(f"Error rendering {output_path}: {e}")
+        return False
+
+
+def generate_pages_parallel(
+    tasks: list[Tuple[str, Dict[str, Any], Path]],
+    page_type: str,
+    num_workers: int | None = None,
+) -> int:
+    """Generate pages in parallel using multiprocessing"""
+    if not tasks:
+        return 0
+
+    if num_workers is None:
+        num_workers = min(mp.cpu_count(), 8)  # Cap at 8 to avoid memory issues
+
+    print(f"Generating {len(tasks)} {page_type} pages using {num_workers} workers...")
+
+    # Pre-create directories to avoid race conditions
+    unique_dirs = set(task[2].parent for task in tasks)
+    if len(unique_dirs) > 100:  # Only parallelize directory creation for large sets
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            dir_futures = [
+                executor.submit(
+                    lambda d: d.mkdir(parents=True, exist_ok=True), dir_path
+                )
+                for dir_path in unique_dirs
+            ]
+            for future in as_completed(dir_futures):
+                future.result()
+    else:
+        for dir_path in unique_dirs:
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    # Render templates in parallel
+    start_time = time.time()
+    successful = 0
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        # Submit all rendering tasks
+        futures = [executor.submit(render_template_parallel, task) for task in tasks]
+
+        # Process completed tasks with progress reporting
+        completed = 0
+        for future in as_completed(futures):
+            if future.result():
+                successful += 1
+            completed += 1
+
+            # Progress reporting for large sets
+            if len(tasks) > 100 and completed % 200 == 0:
+                elapsed = time.time() - start_time
+                rate = completed / elapsed if elapsed > 0 else 0
+                eta = (len(tasks) - completed) / rate if rate > 0 else 0
+                print(
+                    f"  Progress: {completed}/{len(tasks)} ({completed / len(tasks) * 100:.1f}%) "
+                    f"Rate: {rate:.1f}/s ETA: {eta:.0f}s"
+                )
+
+    elapsed = time.time() - start_time
+    rate = successful / elapsed if elapsed > 0 else 0
+    print(
+        f"Generated {successful}/{len(tasks)} {page_type} pages in {elapsed:.1f}s ({rate:.1f} pages/sec)"
+    )
+
+    return successful
 
 
 def build_site(
@@ -184,8 +282,8 @@ def build_site(
     # When building a single reviewer, automatically skip building all reviewers
     # When building a single institution, also skip building all reviewers for performance
     if not skip_reviewers and not single_reviewer and not single_institution:
-        # Generate all reviewer pages
-        print(f"Generating {len(reviewer_db)} individual reviewer pages...")
+        # Prepare all reviewer page tasks for parallel generation
+        reviewer_tasks = []
         for openreview_id, reviewer_data in reviewer_db.items():
             # URL-encode the OpenReview ID for file system compatibility
             # OpenReview IDs are in format ~First_LastN, we need to make them URL-safe
@@ -203,11 +301,14 @@ def build_site(
                 **common,
                 "reviewer": reviewer_data_with_url,
             }
-            render(
-                "reviewer_profile.html",
-                reviewer_context,
-                SITE / "reviewer" / url_safe_id / "index.html",
+
+            output_path = SITE / "reviewer" / url_safe_id / "index.html"
+            reviewer_tasks.append(
+                ("reviewer_profile.html", reviewer_context, output_path)
             )
+
+        # Generate all reviewer pages in parallel
+        generate_pages_parallel(reviewer_tasks, "reviewer")
     elif single_reviewer:
         # Generate only the specified reviewer page
         if single_reviewer in reviewer_db:
@@ -239,18 +340,20 @@ def build_site(
     # When building a single institution, automatically skip building all institutions
     # When building a single reviewer, also skip building all institutions for performance
     if not skip_institutions and not single_institution and not single_reviewer:
-        # Generate all institution pages
-        print(f"Generating {len(institution_db)} individual institution pages...")
+        # Prepare all institution page tasks for parallel generation
+        institution_tasks = []
         for url_safe_id, institution_data in institution_db.items():
             institution_context = {
                 **common,
                 "institution": institution_data,
             }
-            render(
-                "institution_profile.html",
-                institution_context,
-                SITE / "institution" / url_safe_id / "index.html",
+            output_path = SITE / "institution" / url_safe_id / "index.html"
+            institution_tasks.append(
+                ("institution_profile.html", institution_context, output_path)
             )
+
+        # Generate all institution pages in parallel
+        generate_pages_parallel(institution_tasks, "institution")
     elif single_institution:
         # Generate only the specified institution page
         if single_institution in institution_db:
