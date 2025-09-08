@@ -37,6 +37,44 @@ You can also run individual components:
 - **Fast build** (`make build-fast`): Skips individual reviewer pages, significantly faster for development
 - **Single reviewer build** (`make build-single-reviewer`): Generates only one reviewer page for testing reviewer-specific functionality
 
+## Configuration
+
+The project uses configuration files in the `config/` directory to control data sources and reviewer mappings:
+
+### `config/data_sources.toml`
+
+Maps ARR cycle names to their JSON data source URLs from the ACL Rolling Review statistics endpoints.
+
+**Format:**
+
+```toml
+[sources]
+2024_04 = "https://stats.aclrollingreview.org/iterations/2024/april/great_reviewers_data.json"
+2024_06 = "https://stats.aclrollingreview.org/iterations/2024/june/great_reviewers_data.json"
+```
+
+**Usage:** The `src/arr_dl.py` module reads this file to download data for each configured ARR cycle. Add new cycles by adding entries with the cycle name as key and the corresponding stats URL as value.
+
+### `config/manual_openreview_mappings.toml`
+
+Manual mappings of reviewer names to OpenReview profile IDs for cases where automatic matching fails or needs override.
+
+**Format:**
+
+```toml
+[mappings]
+"Full Name|Institution" = "openreview_profile_id"
+```
+
+**Example:**
+
+```toml
+[mappings]
+"John Doe|Yale University" = "~John_Doe123"
+```
+
+**Usage:** The `src/reviewer_utils.py` module loads these mappings to supplement automatic OpenReview profile matching. Add entries when reviewers need manual profile linking or to fix mismatched profiles.
+
 ## Contributor guide
 
 All code is formatted with `ruff` and type-checked with `pyright`. Please ensure
