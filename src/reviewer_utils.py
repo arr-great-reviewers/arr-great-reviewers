@@ -134,7 +134,7 @@ def build_reviewer_database() -> Dict[str, Dict]:
             }
 
     # Add cycle-specific data
-    for cycle_file in raw_data_dir.glob("*.json"):
+    for cycle_file in sorted(raw_data_dir.glob("*.json")):
         cycle_name = cycle_file.stem
 
         with open(cycle_file, "r", encoding="utf-8") as f:
@@ -149,7 +149,7 @@ def build_reviewer_database() -> Dict[str, Dict]:
             if not openreview_id:
                 continue
 
-            # Add to database if not already there
+            # Add to database if not already there, or update existing entry
             if openreview_id not in reviewer_db:
                 reviewer_db[openreview_id] = {
                     "name": name,
@@ -162,6 +162,11 @@ def build_reviewer_database() -> Dict[str, Dict]:
                     "cycles": {},
                     "achievements": [],
                 }
+            else:
+                # Update name and institution to most recent version
+                # (cycles are processed in chronological order)
+                reviewer_db[openreview_id]["name"] = name
+                reviewer_db[openreview_id]["institution"] = institution
 
             # Add cycle-specific data
             reviewer_db[openreview_id]["cycles"][cycle_name] = {
