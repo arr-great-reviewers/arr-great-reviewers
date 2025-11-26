@@ -13,7 +13,7 @@ class ReviewerPageManager {
       tableId: 'full-reviewers-table',
       maxTableRows: 100,
       chartTopCount: 20,
-      minReviewsForPercentage: 3,
+      minReviewsForPercentage: 5,
       ...config
     };
     
@@ -207,6 +207,17 @@ class ReviewerPageManager {
     };
     
     Plotly.newPlot(chartElementId, [trace], layout, config);
+
+    // Add click handler for navigation
+    const chartElement = document.getElementById(chartElementId);
+    chartElement.on('plotly_click', (data) => {
+      const pointIndex = data.points[0].pointIndex;
+      const reviewer = topData[pointIndex];
+      const url = this.getReviewerUrl(reviewer.name || '', reviewer.institution || '');
+      if (url) {
+        window.location.href = url;
+      }
+    });
   }
 
   /**
@@ -282,6 +293,17 @@ class ReviewerPageManager {
     };
     
     Plotly.newPlot(chartElementId, [trace], layout, config);
+
+    // Add click handler for navigation
+    const chartElement = document.getElementById(chartElementId);
+    chartElement.on('plotly_click', (data) => {
+      const pointIndex = data.points[0].pointIndex;
+      const reviewer = topData[pointIndex];
+      const url = this.getReviewerUrl(reviewer.name || '', reviewer.institution || '');
+      if (url) {
+        window.location.href = url;
+      }
+    });
   }
 
   /**

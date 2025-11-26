@@ -13,6 +13,7 @@ class InstitutionPageManager {
       tableId: 'institutions-table',
       maxTableRows: 100,
       chartTopCount: 20,
+      minReviewsForPercentage: 20,
       statsConfig: {
         totalInstitutionsId: 'total-institutions',
         topInstitutionNameId: 'top-institution-name',
@@ -66,8 +67,9 @@ class InstitutionPageManager {
     
     if (loadCharts) {
       this.createInstitutionChart(institutionData, 'inst_abs');
+      this.createPercentageChart();
     }
-    
+
     this.populateInstitutionTable(institutionData);
   }
 
@@ -88,8 +90,9 @@ class InstitutionPageManager {
     
     if (loadCharts) {
       this.createInstitutionChart(institutionData, 'inst_abs');
+      this.createPercentageChartFromData(institutionData, 'inst_pct');
     }
-    
+
     this.populateInstitutionTable(institutionData);
   }
 
@@ -202,18 +205,25 @@ class InstitutionPageManager {
     const topData = institutionData.slice(0, this.config.chartTopCount);
     const names = topData.map(d => d.institution);
     const values = topData.map(d => d.recognized || 0);
-    
+
     const trace = {
       x: names,
       y: values,
       type: 'bar',
       marker: {
         color: values.map((v, i) => {
-          const gradient = `rgba(30, 58, 95, ${0.9 - (i * 0.03)})`;
-          return gradient;
+          if (i === 0) return '#fbbf24';  // Gold
+          if (i === 1) return '#e5e7eb';  // Silver
+          if (i === 2) return '#c9975e';  // Bronze
+          return '#1e3a5f';               // Navy
         }),
         line: {
-          color: '#0f2744',
+          color: values.map((v, i) => {
+            if (i === 0) return '#b8860b';
+            if (i === 1) return '#9ca3af';
+            if (i === 2) return '#8b5a2b';
+            return '#0f2744';
+          }),
           width: 1
         }
       },
@@ -248,6 +258,103 @@ class InstitutionPageManager {
     };
     
     Plotly.newPlot(chartElementId, [trace], layout, config);
+
+    // Add click handler for navigation
+    const chartElement = document.getElementById(chartElementId);
+    chartElement.on('plotly_click', (data) => {
+      const pointIndex = data.points[0].pointIndex;
+      const institution = topData[pointIndex];
+      const url = this.getInstitutionUrl(institution.institution);
+      if (url) {
+        window.location.href = url;
+      }
+    });
+  }
+
+  /**
+   * Creates percentage chart from all-cycles data
+   */
+  createPercentageChart() {
+    fetch('/data/metrics/top_institutions_percentage.json')
+      .then(r => r.json())
+      .then(data => {
+        this.createPercentageChartFromData(data, 'inst_pct');
+      })
+      .catch(err => {
+        console.error('Error loading percentage data:', err);
+        this.handleChartError('inst_pct', 'Unable to load percentage data');
+      });
+  }
+
+  /**
+   * Creates percentage chart from provided data
+   */
+  createPercentageChartFromData(data, chartElementId) {
+    // Filter to institutions with minimum review count
+    const filteredData = data.filter(d => (d.reviewed || 0) >= this.config.minReviewsForPercentage);
+
+    // Calculate percentages and sort
+    const dataWithPercentage = filteredData.map(d => ({
+      ...d,
+      percentage: d.reviewed > 0 ? (d.recognized / d.reviewed) * 100 : 0
+    })).sort((a, b) => b.percentage - a.percentage);
+
+    const topData = dataWithPercentage.slice(0, this.config.chartTopCount);
+    const names = topData.map(d => d.institution);
+    const percentages = topData.map(d => (d.percentage || 0).toFixed(1));
+
+    const trace = {
+      x: names,
+      y: percentages,
+      type: 'bar',
+      marker: {
+        color: percentages.map((v, i) => `rgba(30, 58, 95, ${0.9 - (i * 0.03)})`),
+        line: { color: '#0f2744', width: 1 }
+      },
+      text: topData.map((d, i) => `${percentages[i]}% (${d.recognized || 0})`),
+      textposition: 'inside',
+      textfont: { color: 'white', size: 11 },
+      hovertemplate: '<b>%{x}</b><br>Recognition Rate: %{y}%<br>Recognized Reviews: %{customdata[0]}<br>Total Reviews: %{customdata[1]}<extra></extra>',
+      customdata: topData.map(d => [d.recognized || 0, d.reviewed || 0])
+    };
+
+    const layout = {
+      xaxis: {
+        title: 'Institution',
+        tickangle: -45
+      },
+      yaxis: {
+        title: 'Recognition Rate (%)',
+        range: [0, 100]
+      },
+      margin: { l: 60, r: 30, t: 30, b: 150 },
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      font: {
+        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        size: 12,
+        color: '#64748b'
+      },
+      showlegend: false
+    };
+
+    const config = {
+      responsive: true,
+      displayModeBar: false
+    };
+
+    Plotly.newPlot(chartElementId, [trace], layout, config);
+
+    // Add click handler for navigation
+    const chartElement = document.getElementById(chartElementId);
+    chartElement.on('plotly_click', (data) => {
+      const pointIndex = data.points[0].pointIndex;
+      const institution = topData[pointIndex];
+      const url = this.getInstitutionUrl(institution.institution);
+      if (url) {
+        window.location.href = url;
+      }
+    });
   }
 
   /**
@@ -266,6 +373,7 @@ class InstitutionPageManager {
   handleError(message) {
     TableUtils.TableErrorHandlers.showTableError(this.config.tableBodyId, message, 6);
     this.handleChartError('inst_abs', message);
+    this.handleChartError('inst_pct', message);
   }
 }
 
