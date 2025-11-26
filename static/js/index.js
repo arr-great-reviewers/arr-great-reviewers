@@ -151,9 +151,9 @@ function loadIndexData() {
         name: 'Total Reviews',
         type: 'bar',
         marker: {
-          color: '#3b82f6',
+          color: '#1e3a5f',
           line: {
-            color: '#2563eb',
+            color: '#0f2744',
             width: 1
           }
         }
@@ -165,9 +165,9 @@ function loadIndexData() {
         name: 'Recognized Reviews',
         type: 'bar',
         marker: {
-          color: '#10b981',
+          color: '#2d6a4f',
           line: {
-            color: '#059669',
+            color: '#1b4332',
             width: 1
           }
         }

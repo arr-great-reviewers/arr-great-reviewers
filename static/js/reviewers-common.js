@@ -164,14 +164,14 @@ class ReviewerPageManager {
           if (i === 0) return '#fbbf24';  // Gold
           if (i === 1) return '#e5e7eb';  // Silver
           if (i === 2) return '#c9975e';  // Bronze
-          return '#3b82f6';               // Blue
+          return '#1e3a5f';               // Navy
         }),
         line: {
           color: values.map((v, i) => {
-            if (i === 0) return '#f59e0b';
+            if (i === 0) return '#b8860b';
             if (i === 1) return '#9ca3af';
-            if (i === 2) return '#b97c45';
-            return '#2563eb';
+            if (i === 2) return '#8b5a2b';
+            return '#0f2744';
           }),
           width: 1
         }

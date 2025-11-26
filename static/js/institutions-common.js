@@ -209,11 +209,11 @@ class InstitutionPageManager {
       type: 'bar',
       marker: {
         color: values.map((v, i) => {
-          const gradient = `rgba(59, 130, 246, ${0.9 - (i * 0.03)})`;
+          const gradient = `rgba(30, 58, 95, ${0.9 - (i * 0.03)})`;
           return gradient;
         }),
         line: {
-          color: '#2563eb',
+          color: '#0f2744',
           width: 1
         }
       },
