@@ -31,7 +31,7 @@
     
     
     <h3 id="motivation">Motivation <a href="#motivation" class="anchor-link" aria-label="Link to Motivation section">#</a></h3>
-    <p>Most reviews get written, submitted, and forgotten. But across all ARR cycles, thousands of reviews were so exceptional that Area Chairs flagged them as "Great Reviews." These aren't participation trophies -- they're the reviews that saved papers from rejection, caught fatal flaws others missed, or suggested the key experiment that made everything click. Yet these recognitions end up buried at the bottom of stats pages while the reviewers who wrote them remain invisible.</p>
+    <p>Most reviews get written, submitted, and forgotten. But across all ARR cycles, thousands of reviews were so exceptional that Area Chairs flagged them as "Great Reviews." These aren't participation trophies -- they're the reviews that saved papers from rejection, caught fatal flaws others missed, or suggested the key experiment that made everything click. Yet these recognitions end up buried at the bottom of stats pages (e.g. <a href="https://stats.aclrollingreview.org/iterations/2024/april/">https://stats.aclrollingreview.org/iterations/2024/april/</a> but be advised, you will need to scroll all the way down) while the reviewers who wrote them remain invisible.</p>
     
     {% include "great_review_banner.html" %}
     
@@ -43,7 +43,7 @@
     <p>This section explains the data collection and processing for ARR great reviewers.</p>
     
     <h4 id="data-collection">Data Collection <a href="#data-collection" class="anchor-link" aria-label="Link to Data Collection section">#</a></h4>
-    <p>The dataset comes from the ACL Rolling Review public statistics endpoints. We fetch JSON files for each iteration listed in <code>config/data_sources.toml</code>. Each entry includes reviewer name, institution, counts of reviews and recognized reviews, and the percentage of recognized reviews.</p>
+    <p>The dataset comes from the ACL Rolling Review public statistics endpoints. We fetch JSON files for each iteration listed in <a href="https://github.com/arr-great-reviewers/arr-great-reviewers/blob/main/config/data_sources.toml"><code>config/data_sources.toml</code></a>. Each entry includes reviewer name, institution, counts of reviews and recognized reviews, and the percentage of recognized reviews.</p>
     
     <p>Downloaded files are validated against a reference schema and stored under <code>data/raw/</code>. We then concatenate these files and clean numeric fields to build a unified DataFrame. Aggregations produce metrics for top reviewers and institutions which are exported as JSON under <code>data/metrics/</code>. These metrics feed the static site visualisations.</p>
     
