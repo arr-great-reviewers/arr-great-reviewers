@@ -21,10 +21,12 @@ function initializeNavigation() {
   // Add active class to current nav item
   const currentPath = window.location.pathname;
   const navLinks = document.querySelectorAll('nav a');
-  
+
   navLinks.forEach(link => {
-    if (link.getAttribute('href') === currentPath || 
-        (currentPath === '/' && link.getAttribute('href') === '/')) {
+    const href = link.getAttribute('href');
+    if (href === currentPath ||
+        (currentPath === '/' && href === '/') ||
+        (href !== '/' && currentPath.startsWith(href))) {
       link.classList.add('active');
     }
   });

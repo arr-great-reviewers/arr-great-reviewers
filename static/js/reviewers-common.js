@@ -177,7 +177,8 @@ class ReviewerPageManager {
         }
       },
       text: values.map(v => v.toString()),
-      textposition: 'outside',
+      textposition: 'inside',
+      textfont: { color: 'white', size: 12 },
       hovertemplate: '<b>%{x}</b><br>Recognized Reviews: %{y}<extra></extra>'
     };
     
@@ -245,13 +246,14 @@ class ReviewerPageManager {
       y: percentages,
       type: 'bar',
       marker: {
-        color: '#10b981',
-        line: { color: '#059669', width: 1 }
+        color: percentages.map((v, i) => `rgba(30, 58, 95, ${0.9 - (i * 0.03)})`),
+        line: { color: '#0f2744', width: 1 }
       },
-      text: percentages.map(p => p + '%'),
-      textposition: 'outside',
-      hovertemplate: '<b>%{x}</b><br>Recognition Rate: %{y}%<br>Reviews: %{customdata}<extra></extra>',
-      customdata: topData.map(d => d.reviewed || 0)
+      text: topData.map((d, i) => `${percentages[i]}% (${d.recognized || 0})`),
+      textposition: 'inside',
+      textfont: { color: 'white', size: 11 },
+      hovertemplate: '<b>%{x}</b><br>Recognition Rate: %{y}%<br>Great Reviews: %{customdata[0]}<br>Total Reviews: %{customdata[1]}<extra></extra>',
+      customdata: topData.map(d => [d.recognized || 0, d.reviewed || 0])
     };
     
     const layout = {

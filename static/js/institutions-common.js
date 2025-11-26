@@ -218,7 +218,8 @@ class InstitutionPageManager {
         }
       },
       text: values.map(v => v.toString()),
-      textposition: 'outside',
+      textposition: 'inside',
+      textfont: { color: 'white', size: 12 },
       hovertemplate: '<b>%{x}</b><br>Recognized Reviews: %{y}<extra></extra>'
     };
     

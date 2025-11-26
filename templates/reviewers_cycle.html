@@ -25,8 +25,8 @@
 
 {% block content %}
 <div class="hero-section animate-fade-in">
-  <h2>Outstanding Reviewers Leaderboard - {{ cycle_name }}</h2>
-  <p>These distinguished reviewers have demonstrated exceptional commitment to maintaining the quality and integrity of academic peer review during the {{ cycle_name }} cycle through their thorough, constructive, and timely feedback.</p>
+  <h2>The repeat offenders.</h2>
+  <p>Some people just keep writing helpful reviews. These are the ones who showed up in {{ cycle_name }}.</p>
   <div class="cycle-nav">
     <h3 style="margin: 0; font-size: 1.125rem; color: var(--text-primary);">Cycles:</h3>
     <a href="/reviewers/" class="cycle-link">All Cycles</a>
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const reviewerManager = new ReviewerPageManager({
     maxTableRows: 100  // Cycle pages show 100 rows
   });
-  
+
   reviewerManager.initialize({
     cycle: cycle,
     loadCharts: true

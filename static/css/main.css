@@ -242,10 +242,21 @@ main {
   box-shadow: var(--shadow-lg);
 }
 
+/* Page Headline */
+.page-headline {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  margin: 0 auto 2rem;
+  max-width: 800px;
+  font-style: italic;
+}
+
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 3rem;
   max-width: 1400px;
@@ -1722,18 +1733,11 @@ footer a:hover {
   }
 }
 
-/* Large screens - limit cards to 3-4 columns max */
+/* Large screens - 4 cards in a row */
 @media (min-width: 1200px) {
   .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    max-width: 1600px;
-  }
-}
-
-@media (min-width: 1600px) {
-  .stats-grid {
     grid-template-columns: repeat(4, 1fr);
-    max-width: 1800px;
+    max-width: 1400px;
   }
 }
 
