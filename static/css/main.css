@@ -641,7 +641,8 @@ table tr:hover {
 }
 
 /* Links */
-.reviewer-link {
+.reviewer-link,
+.reviewer-link:visited {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
@@ -651,9 +652,11 @@ table tr:hover {
   display: inline-block;
 }
 
-.reviewer-link:hover {
+.reviewer-link:hover,
+.reviewer-link:visited:hover {
   background-color: var(--primary-color);
-  color: white;
+  color: white !important;
+  text-decoration: none;
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
@@ -663,7 +666,8 @@ table tr:hover {
   outline-offset: 2px;
 }
 
-.institution-link {
+.institution-link,
+.institution-link:visited {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
@@ -673,9 +677,11 @@ table tr:hover {
   display: inline-block;
 }
 
-.institution-link:hover {
+.institution-link:hover,
+.institution-link:visited:hover {
   background-color: var(--primary-color);
-  color: white;
+  color: white !important;
+  text-decoration: none;
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
