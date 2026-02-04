@@ -70,6 +70,9 @@ export OPENREVIEW_COOKIES_FILE="/path/to/openreview_cookies.json"
 make map-openreview-reprocess-top
 ```
 
+When cookies are provided, the mapper will also use the OpenReview API as a fallback
+for profiles whose HTML pages do not expose history data.
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages

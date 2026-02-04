@@ -19,6 +19,7 @@ app = typer.Typer(
 )
 console = Console()
 _session: Optional[requests.Session] = None
+_access_token: Optional[str] = None
 
 
 def normalize_name(name: str) -> str:
@@ -31,12 +32,12 @@ def normalize_name(name: str) -> str:
 
 
 def fetch_openreview_profile(profile_id: str) -> Optional[Dict]:
-    """Fetch OpenReview profile data"""
+    """Fetch OpenReview profile HTML page."""
     url = f"https://openreview.net/profile?id={profile_id}"
 
     try:
         session = get_requests_session()
-        response = session.get(url, timeout=10)
+        response = session.get(url, timeout=15)
         if response.status_code == 200:
             content = response.text
             actual_profile_id = profile_id
@@ -60,6 +61,27 @@ def fetch_openreview_profile(profile_id: str) -> Optional[Dict]:
             }
         return None
     except requests.RequestException:
+        return None
+
+
+def fetch_profile_from_api(profile_id: str) -> Optional[Dict]:
+    """Fetch profile data from the OpenReview API (requires access token)."""
+    access_token = get_access_token_from_env()
+    if not access_token:
+        return None
+
+    session = get_requests_session()
+    url = f"https://api2.openreview.net/profiles?id={profile_id}"
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    try:
+        response = session.get(url, headers=headers, timeout=15)
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        profiles = data.get("profiles", [])
+        return profiles[0] if profiles else None
+    except (requests.RequestException, ValueError):
         return None
 
 
@@ -129,6 +151,46 @@ def load_auth_cookies_from_env() -> list[dict]:
     return cookies
 
 
+def get_access_token_from_env() -> Optional[str]:
+    """Load OpenReview access token from env or cookie JSON."""
+    global _access_token
+    if _access_token:
+        return _access_token
+
+    access_token = os.getenv("OPENREVIEW_ACCESS_TOKEN")
+    if access_token:
+        _access_token = access_token
+        return _access_token
+
+    cookies_json = os.getenv("OPENREVIEW_COOKIES_JSON")
+    cookies_file = os.getenv("OPENREVIEW_COOKIES_FILE")
+    raw = None
+    if cookies_file:
+        try:
+            raw = Path(cookies_file).read_text(encoding="utf-8")
+        except OSError:
+            raw = None
+    elif cookies_json:
+        raw = cookies_json
+
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and "cookies" in parsed:
+                parsed = parsed["cookies"]
+            if isinstance(parsed, dict) and "data" in parsed and "cookies" in parsed["data"]:
+                parsed = parsed["data"]["cookies"]
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict) and item.get("name") == "openreview.accessToken":
+                        _access_token = item.get("value")
+                        return _access_token
+        except json.JSONDecodeError:
+            pass
+
+    return None
+
+
 def get_requests_session() -> requests.Session:
     """Return a configured session with optional auth cookies."""
     global _session
@@ -146,6 +208,24 @@ def get_requests_session() -> requests.Session:
 
     _session = session
     return _session
+
+
+def extract_institution_history_from_api(profile: Dict) -> List[str]:
+    """Extract institution history strings from API profile JSON."""
+    history = []
+    content = profile.get("content", {})
+    for item in content.get("history", []) or []:
+        institution = item.get("institution", {}) or {}
+        parts = [
+            item.get("position", ""),
+            institution.get("name", ""),
+            institution.get("department", ""),
+            institution.get("city", ""),
+            institution.get("country", ""),
+            institution.get("domain", ""),
+        ]
+        history.append(" ".join(p for p in parts if p))
+    return history
 
 
 def extract_institution_from_profile(profile_content: str) -> List[str]:
@@ -227,6 +307,14 @@ def find_matching_profiles(
             profile_institutions = extract_institution_from_profile(
                 profile_data["content"]
             )
+
+            # Fallback to API if HTML doesn't include history
+            if not profile_institutions:
+                api_profile = fetch_profile_from_api(profile_data["profile_id"])
+                if api_profile:
+                    profile_institutions = extract_institution_history_from_api(
+                        api_profile
+                    )
 
             if institution_matches(institution, profile_institutions):
                 # Use the actual profile ID (in case of redirect)
