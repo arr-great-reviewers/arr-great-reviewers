@@ -358,15 +358,16 @@ def find_matching_profiles(
                 profile_data["content"]
             )
 
-            # Fallback to API if HTML doesn't include history
-            if not profile_institutions:
+            match = institution_matches(institution, profile_institutions)
+
+            # Fallback to API if HTML doesn't include history or doesn't match
+            if not match:
                 api_profile = fetch_profile_from_api(profile_data["profile_id"])
                 if api_profile:
-                    profile_institutions = extract_institution_history_from_api(
-                        api_profile
-                    )
+                    api_history = extract_institution_history_from_api(api_profile)
+                    match = institution_matches(institution, api_history)
 
-            if institution_matches(institution, profile_institutions):
+            if match:
                 # Use the actual profile ID (in case of redirect)
                 actual_id = profile_data["profile_id"]
 
