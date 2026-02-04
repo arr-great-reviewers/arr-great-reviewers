@@ -22,13 +22,42 @@ _session: Optional[requests.Session] = None
 _access_token: Optional[str] = None
 
 
-def normalize_name(name: str) -> str:
-    """Convert name to OpenReview profile format: ~First_Last$n"""
-    # Remove special characters and normalize spaces
-    name = re.sub(r"[^\w\s-]", "", name)
-    # Replace spaces with underscores
-    name = name.replace(" ", "_")
+def normalize_name_variant(
+    name: str, keep_dots: bool = False, keep_apostrophes: bool = False
+) -> str:
+    """Normalize name to OpenReview profile format with optional punctuation."""
+    allowed = r"\w\s"
+    if keep_dots:
+        allowed += r"\."
+    if keep_apostrophes:
+        allowed += "'"
+    # Keep hyphen literal in class (not as a range)
+    allowed += "-"
+    name = re.sub(rf"[^{allowed}]", "", name)
+    name = re.sub(r"\s+", "_", name.strip())
     return name
+
+
+def generate_profile_candidates(name: str, max_profiles: int) -> List[str]:
+    """Generate candidate OpenReview profile IDs for a name."""
+    bases = []
+    seen = set()
+
+    for keep_dots in (True, False):
+        for keep_apostrophes in (True, False):
+            normalized = normalize_name_variant(
+                name, keep_dots=keep_dots, keep_apostrophes=keep_apostrophes
+            )
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                bases.append(normalized)
+
+    candidates = []
+    for base in bases:
+        for i in range(1, max_profiles + 1):
+            candidates.append(f"~{base}{i}")
+
+    return candidates
 
 
 def fetch_openreview_profile(profile_id: str) -> Optional[Dict]:
@@ -286,6 +315,28 @@ def institution_matches(
     return False
 
 
+def search_profiles_by_name(first: str, last: str) -> List[Dict]:
+    """Search profiles via API by first/last name (requires access token)."""
+    access_token = get_access_token_from_env()
+    if not access_token:
+        return []
+
+    session = get_requests_session()
+    url = "https://api2.openreview.net/profiles"
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    try:
+        response = session.get(
+            url, headers=headers, params={"first": first, "last": last}, timeout=15
+        )
+        if response.status_code != 200:
+            return []
+        data = response.json()
+        return data.get("profiles", []) or []
+    except (requests.RequestException, ValueError):
+        return []
+
+
 def find_matching_profiles(
     name: str, institution: str, max_profiles: int = 30
 ) -> List[str]:
@@ -294,8 +345,7 @@ def find_matching_profiles(
     Returns a list of matching profile IDs (deduplicated).
     """
     # Generate profile candidates
-    normalized_name = normalize_name(name)
-    profile_candidates = [f"~{normalized_name}{i}" for i in range(1, max_profiles + 1)]
+    profile_candidates = generate_profile_candidates(name, max_profiles)
 
     matching_profiles = set()  # Use set to avoid duplicates
 
@@ -337,6 +387,25 @@ def find_matching_profiles(
                     if profile_data.get("redirected"):
                         console.print(
                             f"[blue]i[/blue] Duplicate: {profile_id} → {actual_id} for {name} (already found)"
+                        )
+
+    # Fallback: API name search when punctuation/middle initials differ
+    if not matching_profiles:
+        tokens = [t for t in name.replace(",", " ").split() if t]
+        if tokens:
+            first = tokens[0]
+            last = tokens[-1]
+            api_profiles = search_profiles_by_name(first, last)
+            for profile in api_profiles:
+                profile_id = profile.get("id")
+                if not profile_id:
+                    continue
+                api_history = extract_institution_history_from_api(profile)
+                if institution_matches(institution, api_history):
+                    if profile_id not in matching_profiles:
+                        matching_profiles.add(profile_id)
+                        console.print(
+                            f"[green]✓[/green] Found match: {profile_id} for {name}"
                         )
 
     # Convert back to list and return

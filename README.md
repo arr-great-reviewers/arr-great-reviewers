@@ -73,6 +73,9 @@ make map-openreview-reprocess-top
 When cookies are provided, the mapper will also use the OpenReview API as a fallback
 for profiles whose HTML pages do not expose history data.
 
+Name lookup is robust to punctuation differences (e.g., dotted initials or apostrophes),
+and uses a first/last-name API search fallback when needed.
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages
