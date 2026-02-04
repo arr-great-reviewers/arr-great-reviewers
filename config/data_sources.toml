@@ -1,4 +1,5 @@
 [sources]
+2025_10 = "https://stats.aclrollingreview.org/iterations/2025/october/great_reviewers_data.json"
 2025_07 = "https://stats.aclrollingreview.org/iterations/2025/july/great_reviewers_data.json"
 2025_05 = "https://stats.aclrollingreview.org/iterations/2025/may/great_reviewers_data.json"
 2025_02 = "https://stats.aclrollingreview.org/iterations/2025/february/great_reviewers_data.json"
