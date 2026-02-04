@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import os
 import re
 import tomllib
 from pathlib import Path
@@ -17,6 +18,7 @@ app = typer.Typer(
     help="Map reviewer names to OpenReview profiles. Use 'incremental' to process only new reviewers."
 )
 console = Console()
+_session: Optional[requests.Session] = None
 
 
 def normalize_name(name: str) -> str:
@@ -33,7 +35,8 @@ def fetch_openreview_profile(profile_id: str) -> Optional[Dict]:
     url = f"https://openreview.net/profile?id={profile_id}"
 
     try:
-        response = requests.get(url, timeout=10)
+        session = get_requests_session()
+        response = session.get(url, timeout=10)
         if response.status_code == 200:
             content = response.text
             actual_profile_id = profile_id
@@ -58,6 +61,91 @@ def fetch_openreview_profile(profile_id: str) -> Optional[Dict]:
         return None
     except requests.RequestException:
         return None
+
+
+def load_auth_cookies_from_env() -> list[dict]:
+    """Load OpenReview auth cookies from environment variables."""
+    cookies: list[dict] = []
+
+    access_token = os.getenv("OPENREVIEW_ACCESS_TOKEN")
+    refresh_token = os.getenv("OPENREVIEW_REFRESH_TOKEN")
+    if access_token:
+        cookies.append(
+            {
+                "name": "openreview.accessToken",
+                "value": access_token,
+                "domain": ".openreview.net",
+                "path": "/",
+            }
+        )
+    if refresh_token:
+        cookies.append(
+            {
+                "name": "openreview.refreshToken",
+                "value": refresh_token,
+                "domain": ".openreview.net",
+                "path": "/",
+            }
+        )
+
+    cookies_json = os.getenv("OPENREVIEW_COOKIES_JSON")
+    cookies_file = os.getenv("OPENREVIEW_COOKIES_FILE")
+    raw = None
+    if cookies_file:
+        try:
+            raw = Path(cookies_file).read_text(encoding="utf-8")
+        except OSError:
+            raw = None
+    elif cookies_json:
+        raw = cookies_json
+
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and "cookies" in parsed:
+                parsed = parsed["cookies"]
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if not isinstance(item, dict):
+                        continue
+                    domain = item.get("domain") or ""
+                    if "openreview.net" not in domain:
+                        continue
+                    name = item.get("name")
+                    value = item.get("value")
+                    path = item.get("path", "/")
+                    if name and value:
+                        cookies.append(
+                            {
+                                "name": name,
+                                "value": value,
+                                "domain": domain,
+                                "path": path,
+                            }
+                        )
+        except json.JSONDecodeError:
+            pass
+
+    return cookies
+
+
+def get_requests_session() -> requests.Session:
+    """Return a configured session with optional auth cookies."""
+    global _session
+    if _session is not None:
+        return _session
+
+    session = requests.Session()
+    for cookie in load_auth_cookies_from_env():
+        session.cookies.set(
+            cookie["name"],
+            cookie["value"],
+            domain=cookie.get("domain"),
+            path=cookie.get("path", "/"),
+        )
+
+    _session = session
+    return _session
 
 
 def extract_institution_from_profile(profile_content: str) -> List[str]:

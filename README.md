@@ -55,6 +55,21 @@ uv run python -m src.map_openreview_profiles reprocess-top --top-n-per-cycle 100
 
 Note: `map-openreview-reprocess-top` uses existing `data/metrics/reviewers_*.json` files. If those files are stale or missing, run `make metrics` first.
 
+You can pass authenticated OpenReview cookies via environment variables (useful for gated profiles):
+
+```bash
+export OPENREVIEW_ACCESS_TOKEN="..."
+export OPENREVIEW_REFRESH_TOKEN="..."
+make map-openreview-reprocess-top
+```
+
+Alternatively, provide a cookie JSON dump from a browser session:
+
+```bash
+export OPENREVIEW_COOKIES_FILE="/path/to/openreview_cookies.json"
+make map-openreview-reprocess-top
+```
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages
