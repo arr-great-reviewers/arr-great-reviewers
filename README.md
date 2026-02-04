@@ -31,6 +31,12 @@ You can also run individual components:
 - **`make site-fast`** - Generate site excluding reviewer pages (requires data and metrics)
 - **`make site-single-reviewer`** - Generate site with only Marek Suppa's reviewer page (requires data and metrics)
 
+### OpenReview profile mapping
+
+- **`make map-openreview`** - Build a full OpenReview mapping from scratch (writes `data/openreview_profile_mapping.json`)
+- **`make map-openreview-incremental`** - Only process reviewers not yet present in the mapping file
+- **`uv run python -m src.map_openreview_profiles incremental --reprocess-no-matches`** - Reprocess previously unmatched reviewers before scanning for new ones
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages

@@ -473,6 +473,11 @@ def incremental(
         "-m",
         help="Maximum number of profile variants to try (1 to N)",
     ),
+    reprocess_no_matches_flag: bool = typer.Option(
+        False,
+        "--reprocess-no-matches",
+        help="Reprocess existing no-matches before scanning for new reviewers",
+    ),
 ):
     """Incrementally process only new reviewers not found in existing mapping results."""
 
@@ -493,6 +498,10 @@ def incremental(
 
     if not existing_results:
         raise typer.Exit(1)
+
+    if reprocess_no_matches_flag:
+        console.print("[blue]Reprocessing existing no-matches...[/blue]")
+        existing_results = reprocess_no_matches(existing_results, max_profiles)
 
     # Load all reviewer data
     console.print(f"[blue]Loading reviewer data from {data_dir}...[/blue]")
