@@ -20,6 +20,7 @@ the analytics pipeline, and builds the static site into `site/`.
 The following Makefile targets are available for different build scenarios:
 
 - **`make build`** - Full build: data download, metrics calculation, and complete site generation (default)
+- **`make build-mapped`** - Full build that fails if any reviewers remain unmapped
 - **`make build-fast`** - Fast build: data download, metrics calculation, and site generation excluding individual reviewer pages
 - **`make build-single-reviewer`** - Single reviewer build: data download, metrics calculation, and site generation with only Marek Suppa's reviewer page
 
@@ -36,6 +37,23 @@ You can also run individual components:
 - **`make map-openreview`** - Build a full OpenReview mapping from scratch (writes `data/openreview_profile_mapping.json`)
 - **`make map-openreview-incremental`** - Only process reviewers not yet present in the mapping file
 - **`uv run python -m src.map_openreview_profiles incremental --reprocess-no-matches`** - Reprocess previously unmatched reviewers before scanning for new ones
+- **`make map-openreview-check`** - Fail if any reviewers in `data/raw` are still unmapped
+- **`make map-openreview-check-top`** - Fail if any top 100 reviewers per cycle are still unmapped
+- **`make map-openreview-reprocess-top`** - Reprocess no-matches only for the top 100 reviewers per cycle
+
+To check a specific set of cycles or a different cutoff:
+
+```bash
+uv run python -m src.map_openreview_profiles check --top-n-per-cycle 100 --cycles 2025_07,2025_10 --fail-on-missing
+```
+
+To reprocess only those top reviewers:
+
+```bash
+uv run python -m src.map_openreview_profiles reprocess-top --top-n-per-cycle 100 --cycles 2025_07,2025_10
+```
+
+Note: `map-openreview-reprocess-top` uses existing `data/metrics/reviewers_*.json` files. If those files are stale or missing, run `make metrics` first.
 
 ### Performance comparison
 

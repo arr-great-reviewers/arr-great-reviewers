@@ -2,6 +2,7 @@
 #
 # Available targets:
 #   build                    - Full build: data + metrics + all pages (default)
+#   build-mapped             - Full build that fails if any reviewers remain unmapped
 #   build-fast              - Fast build: data + metrics + non-reviewer pages only
 #   build-single-reviewer   - Single reviewer build: data + metrics + Marek Suppa page only
 #   build-single-institution - Single institution build: data + metrics + Google page only
@@ -13,6 +14,9 @@
 #   site-single-institution - Generate site with only Google institution page
 #   map-openreview          - Map all reviewers to OpenReview profiles
 #   map-openreview-incremental - Map only new reviewers to OpenReview profiles
+#   map-openreview-check    - Fail if any reviewers remain unmapped
+#   map-openreview-check-top - Fail if any top-N reviewers per cycle remain unmapped
+#   map-openreview-reprocess-top - Reprocess no-matches only for top-N reviewers per cycle
 #
 # Fast development workflow:
 #   1. Use 'make build-fast' during development to avoid generating 2000+ reviewer pages
@@ -20,12 +24,31 @@
 #   3. Use 'make build-single-institution' to test institution page functionality
 #   4. Use 'make build' for final complete build
 
-.PHONY: build data metrics site site-fast site-single-reviewer site-single-institution build-fast build-single-reviewer build-single-institution map-openreview map-openreview-incremental
+.PHONY: build build-mapped data metrics site site-fast site-single-reviewer site-single-institution build-fast build-single-reviewer build-single-institution map-openreview map-openreview-incremental map-openreview-check map-openreview-check-top map-openreview-reprocess-top
 
 VENV=.venv
 PY=$(VENV)/bin/python
 
 build: data metrics site
+
+# Full build that requires all reviewers to be mapped
+build-mapped: data
+	$(PY) -m src.map_openreview_profiles incremental --reprocess-no-matches
+	$(PY) -m src.map_openreview_profiles check --fail-on-missing
+	$(PY) -m src.reviewer_utils
+	$(PY) -m src.arr_analysis
+	$(PY) -m src.institution_utils
+	$(PY) -m src.build_site
+
+map-openreview-check: install
+	$(PY) -m src.map_openreview_profiles check --fail-on-missing
+
+map-openreview-check-top: install
+	$(PY) -m src.reviewer_utils
+	$(PY) -m src.map_openreview_profiles check --top-n-per-cycle 100 --fail-on-missing
+
+map-openreview-reprocess-top: install
+	$(PY) -m src.map_openreview_profiles reprocess-top --top-n-per-cycle 100
 
 # Fast build: rebuild all pages except individual reviewer pages
 build-fast: data metrics site-fast
@@ -37,7 +60,7 @@ build-single-reviewer: data metrics site-single-reviewer
 build-single-institution: data metrics site-single-institution
 
 venv:
-	uv venv $(VENV)
+	uv venv $(VENV) --clear
 
 install: venv
 	uv pip install -r pyproject.toml

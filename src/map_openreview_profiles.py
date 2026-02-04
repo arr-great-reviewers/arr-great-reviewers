@@ -2,6 +2,7 @@
 
 import json
 import re
+import tomllib
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -268,7 +269,31 @@ def load_existing_results(results_file: Path) -> Optional[Dict]:
         return None
 
 
-def reprocess_no_matches(results: Dict, max_profiles: int = 30) -> Dict:
+def load_manual_mappings() -> Dict[str, str]:
+    """Load manual OpenReview profile mappings from TOML."""
+    manual_file = Path("config/manual_openreview_mappings.toml")
+
+    if not manual_file.exists():
+        return {}
+
+    with open(manual_file, "rb") as f:
+        data = tomllib.load(f)
+
+    return data.get("mappings", {})
+
+
+def get_mapped_keys_for_links(results: Dict) -> set:
+    """Get reviewer keys that resolve to a link (single, multiple, or manual)."""
+    mapped = set()
+    mapped.update(results.get("single_matches", {}).keys())
+    mapped.update(results.get("multiple_matches", {}).keys())
+    mapped.update(load_manual_mappings().keys())
+    return mapped
+
+
+def reprocess_no_matches(
+    results: Dict, max_profiles: int = 30, limit_keys: Optional[set] = None
+) -> Dict:
     """Reprocess entries from no_matches and move found matches to appropriate sections"""
     if not results.get("no_matches"):
         console.print("[blue]No unmatched entries to reprocess[/blue]")
@@ -278,11 +303,16 @@ def reprocess_no_matches(results: Dict, max_profiles: int = 30) -> Dict:
     no_matches_copy = dict(results["no_matches"])
     newly_found = []
 
+    if limit_keys is not None:
+        target_items = {k: v for k, v in no_matches_copy.items() if k in limit_keys}
+    else:
+        target_items = no_matches_copy
+
     console.print(
-        f"[blue]Reprocessing {len(no_matches_copy)} unmatched entries...[/blue]"
+        f"[blue]Reprocessing {len(target_items)} unmatched entries...[/blue]"
     )
 
-    for key, entry in track(no_matches_copy.items(), description="Reprocessing..."):
+    for key, entry in track(target_items.items(), description="Reprocessing..."):
         name = entry["name"]
         institution = entry["institution"]
 
@@ -345,8 +375,52 @@ def get_all_mapped_keys(results: Dict) -> set:
         all_keys.update(results["multiple_matches"].keys())
     if "no_matches" in results:
         all_keys.update(results["no_matches"].keys())
+    all_keys.update(load_manual_mappings().keys())
 
     return all_keys
+
+
+def load_top_reviewer_keys(
+    metrics_dir: Path, top_n_per_cycle: int, cycles: Optional[str]
+) -> set:
+    """Load name|institution keys for top N reviewers per cycle from metrics files."""
+    if not metrics_dir.exists():
+        console.print(
+            f"[red]Error: Metrics directory {metrics_dir} does not exist[/red]"
+        )
+        raise typer.Exit(1)
+
+    cycles_list = []
+    if cycles:
+        cycles_list = [c.strip() for c in cycles.split(",") if c.strip()]
+    else:
+        for path in sorted(metrics_dir.glob("reviewers_*.json")):
+            cycles_list.append(path.stem.replace("reviewers_", "", 1))
+
+    if not cycles_list:
+        console.print("[red]No cycle metrics files found to check[/red]")
+        raise typer.Exit(1)
+
+    keys = set()
+    for cycle in cycles_list:
+        cycle_file = metrics_dir / f"reviewers_{cycle}.json"
+        if not cycle_file.exists():
+            console.print(
+                f"[red]Missing metrics file for cycle {cycle}: {cycle_file}[/red]"
+            )
+            raise typer.Exit(1)
+
+        with open(cycle_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for reviewer in data[:top_n_per_cycle]:
+            name = reviewer.get("name", "")
+            institution = reviewer.get("institution", "")
+            if not name or not institution:
+                continue
+            keys.add(f"{name}|{institution}")
+
+    return keys
 
 
 def find_new_reviewers(reviewers: List[Dict], existing_results: Dict) -> List[Dict]:
@@ -451,6 +525,210 @@ def reprocess(
     # Display updated summary
     console.print("[blue]Updated state:[/blue]")
     display_summary(updated_results)
+
+
+@app.command("reprocess-top")
+def reprocess_top(
+    metrics_dir: Path = typer.Option(
+        Path("data/metrics"),
+        "--metrics-dir",
+        help="Directory containing reviewer metrics JSON files",
+    ),
+    top_n_per_cycle: int = typer.Option(
+        100,
+        "--top-n-per-cycle",
+        help="Only reprocess reviewers in the top N per cycle",
+    ),
+    cycles: Optional[str] = typer.Option(
+        None,
+        "--cycles",
+        help="Comma-separated cycle IDs to reprocess (e.g., 2025_07,2025_10)",
+    ),
+    results_file: Path = typer.Option(
+        Path("data/openreview_profile_mapping.json"),
+        "--results-file",
+        "-r",
+        help="Path to existing results JSON file",
+    ),
+    max_profiles: int = typer.Option(
+        30,
+        "--max-profiles",
+        "-m",
+        help="Maximum number of profile variants to try (1 to N)",
+    ),
+):
+    """Reprocess no-matches only for top-N reviewers per cycle."""
+
+    if not results_file.exists():
+        console.print(f"[red]Error: Results file {results_file} does not exist[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[blue]Loading existing results from {results_file}...[/blue]")
+    results = load_existing_results(results_file)
+    if not results:
+        raise typer.Exit(1)
+
+    target_keys = load_top_reviewer_keys(metrics_dir, top_n_per_cycle, cycles)
+    if not target_keys:
+        console.print("[red]No target reviewers found to reprocess[/red]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"[blue]Reprocessing no-matches for {len(target_keys)} top reviewers...[/blue]"
+    )
+    updated_results = reprocess_no_matches(results, max_profiles, limit_keys=target_keys)
+
+    with open(results_file, "w", encoding="utf-8") as f:
+        json.dump(updated_results, f, indent=2, ensure_ascii=False)
+
+    console.print(f"[green]Updated results saved to {results_file}[/green]")
+    display_summary(updated_results)
+
+
+@app.command()
+def check(
+    data_dir: Path = typer.Option(
+        Path("data/raw"),
+        "--data-dir",
+        "-d",
+        help="Directory containing reviewer JSON files",
+    ),
+    metrics_dir: Path = typer.Option(
+        Path("data/metrics"),
+        "--metrics-dir",
+        help="Directory containing reviewer metrics JSON files",
+    ),
+    results_file: Path = typer.Option(
+        Path("data/openreview_profile_mapping.json"),
+        "--results-file",
+        "-r",
+        help="Path to existing results JSON file",
+    ),
+    top_n_per_cycle: int = typer.Option(
+        0,
+        "--top-n-per-cycle",
+        help="Only check the top N reviewers per cycle from metrics files",
+    ),
+    cycles: Optional[str] = typer.Option(
+        None,
+        "--cycles",
+        help="Comma-separated cycle IDs to check (e.g., 2025_07,2025_10)",
+    ),
+    fail_on_missing: bool = typer.Option(
+        False,
+        "--fail-on-missing",
+        help="Exit with error if any reviewers remain unmapped",
+    ),
+    show: int = typer.Option(
+        20,
+        "--show",
+        help="Number of missing reviewers to show",
+    ),
+):
+    """Check mapping coverage for reviewers in the data directory."""
+
+    if top_n_per_cycle <= 0 and not data_dir.exists():
+        console.print(f"[red]Error: Data directory {data_dir} does not exist[/red]")
+        raise typer.Exit(1)
+
+    if not results_file.exists():
+        console.print(f"[red]Error: Results file {results_file} does not exist[/red]")
+        raise typer.Exit(1)
+
+    results = load_existing_results(results_file)
+    if not results:
+        raise typer.Exit(1)
+
+    mapped_keys = get_mapped_keys_for_links(results)
+
+    missing = []
+    if top_n_per_cycle > 0:
+        if not metrics_dir.exists():
+            console.print(
+                f"[red]Error: Metrics directory {metrics_dir} does not exist[/red]"
+            )
+            raise typer.Exit(1)
+
+        total_checked = 0
+        any_missing = False
+
+        cycles_list = []
+        if cycles:
+            cycles_list = [c.strip() for c in cycles.split(",") if c.strip()]
+        else:
+            for path in sorted(metrics_dir.glob("reviewers_*.json")):
+                cycles_list.append(path.stem.replace("reviewers_", "", 1))
+
+        if not cycles_list:
+            console.print("[red]No cycle metrics files found to check[/red]")
+            raise typer.Exit(1)
+
+        for cycle in cycles_list:
+            cycle_file = metrics_dir / f"reviewers_{cycle}.json"
+            if not cycle_file.exists():
+                console.print(
+                    f"[red]Missing metrics file for cycle {cycle}: {cycle_file}[/red]"
+                )
+                raise typer.Exit(1)
+
+            with open(cycle_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            top_data = data[:top_n_per_cycle]
+            total_checked += len(top_data)
+
+            cycle_missing = []
+            for reviewer in top_data:
+                name = reviewer.get("name", "")
+                institution = reviewer.get("institution", "")
+                if not name or not institution:
+                    continue
+                key = f"{name}|{institution}"
+                if key not in mapped_keys:
+                    cycle_missing.append((name, institution))
+
+            console.print(
+                f"[blue]{cycle}:[/blue] Checked {len(top_data)} | "
+                f"[blue]Unmapped:[/blue] {len(cycle_missing)}"
+            )
+
+            if cycle_missing:
+                any_missing = True
+
+            if cycle_missing and show:
+                console.print("[yellow]Sample missing reviewers:[/yellow]")
+                for name, institution in cycle_missing[: max(show, 0)]:
+                    console.print(f"  • {name} @ {institution}")
+
+        console.print(f"[blue]Total checked:[/blue] {total_checked}")
+
+        if fail_on_missing and any_missing:
+            raise typer.Exit(1)
+        if fail_on_missing and not any_missing and total_checked > 0:
+            return
+    else:
+        reviewers = load_reviewer_data(data_dir)
+        for reviewer in reviewers:
+            name = reviewer.get("name", "")
+            institution = reviewer.get("institution", "")
+            if not name or not institution:
+                continue
+            key = f"{name}|{institution}"
+            if key not in mapped_keys:
+                missing.append((name, institution))
+
+        console.print(
+            f"[blue]Reviewers total:[/blue] {len(reviewers)} | "
+            f"[blue]Unmapped:[/blue] {len(missing)}"
+        )
+
+        if missing and show:
+            console.print("[yellow]Sample missing reviewers:[/yellow]")
+            for name, institution in missing[: max(show, 0)]:
+                console.print(f"  • {name} @ {institution}")
+
+        if fail_on_missing and missing:
+            raise typer.Exit(1)
 
 
 @app.command()
