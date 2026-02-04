@@ -291,6 +291,19 @@ def get_mapped_keys_for_links(results: Dict) -> set:
     return mapped
 
 
+def remove_key_from_results(results: Dict, key: str) -> None:
+    """Remove a key from any category and update metadata counters."""
+    if key in results.get("single_matches", {}):
+        del results["single_matches"][key]
+        results["metadata"]["single_matches"] -= 1
+    if key in results.get("multiple_matches", {}):
+        del results["multiple_matches"][key]
+        results["metadata"]["multiple_matches"] -= 1
+    if key in results.get("no_matches", {}):
+        del results["no_matches"][key]
+        results["metadata"]["no_matches"] -= 1
+
+
 def reprocess_no_matches(
     results: Dict, max_profiles: int = 30, limit_keys: Optional[set] = None
 ) -> Dict:
@@ -583,6 +596,75 @@ def reprocess_top(
 
     console.print(f"[green]Updated results saved to {results_file}[/green]")
     display_summary(updated_results)
+
+
+@app.command("reprocess-one")
+def reprocess_one(
+    name: str = typer.Option(..., "--name", help="Reviewer full name"),
+    institution: str = typer.Option(..., "--institution", help="Reviewer institution"),
+    results_file: Path = typer.Option(
+        Path("data/openreview_profile_mapping.json"),
+        "--results-file",
+        "-r",
+        help="Path to existing results JSON file",
+    ),
+    max_profiles: int = typer.Option(
+        30,
+        "--max-profiles",
+        "-m",
+        help="Maximum number of profile variants to try (1 to N)",
+    ),
+    write: bool = typer.Option(
+        False,
+        "--write",
+        help="Write updated mapping results back to the results file",
+    ),
+):
+    """Reprocess a single reviewer entry by name and institution."""
+
+    if not results_file.exists():
+        console.print(f"[red]Error: Results file {results_file} does not exist[/red]")
+        raise typer.Exit(1)
+
+    results = load_existing_results(results_file)
+    if not results:
+        raise typer.Exit(1)
+
+    key = f"{name}|{institution}"
+    console.print(f"[blue]Reprocessing:[/blue] {key}")
+
+    matches = find_matching_profiles(name, institution, max_profiles)
+    if matches:
+        console.print(f"[green]Matches:[/green] {matches}")
+    else:
+        console.print("[yellow]No matches found[/yellow]")
+
+    if not write:
+        return
+
+    remove_key_from_results(results, key)
+
+    entry = {
+        "name": name,
+        "institution": institution,
+        "openreview_profiles": matches,
+        "match_count": len(matches),
+    }
+
+    if not matches:
+        results["no_matches"][key] = entry
+        results["metadata"]["no_matches"] += 1
+    elif len(matches) == 1:
+        results["single_matches"][key] = entry
+        results["metadata"]["single_matches"] += 1
+    else:
+        results["multiple_matches"][key] = entry
+        results["metadata"]["multiple_matches"] += 1
+
+    with open(results_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+
+    console.print(f"[green]Updated results saved to {results_file}[/green]")
 
 
 @app.command()
