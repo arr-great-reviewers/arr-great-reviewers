@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
+{% block title %}{{ reviewer.name }} - ARR Great Reviewers{% endblock %}
 
-{% block description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 
 {% block keywords %}{{ reviewer.name }}, {{ reviewer.institution }}, ACL Rolling Review, peer reviewer profile, academic reviewer, NLP reviewer, computational linguistics, great reviews{% endblock %}
 
-{% block og_title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
-{% block og_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block og_title %}{{ reviewer.name }} - ARR Great Reviewers{% endblock %}
+{% block og_description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 {% block og_type %}profile{% endblock %}
 
-{% block twitter_title %}{{ reviewer.name }} - Reviewer Profile - ARR Great Reviewers{% endblock %}
-{% block twitter_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block twitter_title %}{{ reviewer.name }} - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 
 {% block schema_type %}Person{% endblock %}
 {% block schema_name %}{{ reviewer.name }}{% endblock %}
-{% block schema_description %}View detailed profile and achievements of {{ reviewer.name }} from {{ reviewer.institution }}. Total {{ reviewer.total_recognized }} great reviews with {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ACL Rolling Review.{% endblock %}
+{% block schema_description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 {% block schema_additional %},
     "givenName": "{{ reviewer.name.split(' ')[0] if reviewer.name }}",
     "familyName": "{{ reviewer.name.split(' ')[-1] if reviewer.name and reviewer.name.split(' ')|length > 1 }}",

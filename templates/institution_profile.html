@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}{{ institution.name }} - Institution Profile - ARR Great Reviewers{% endblock %}
+{% block title %}{{ institution.name }} - ARR Great Reviewers{% endblock %}
 
-{% block description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
+{% block description %}{{ institution.name }}: {{ institution.total_recognized }} reviews that were actually worth reading. {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 
 {% block keywords %}{{ institution.name }}, ACL Rolling Review, institutional rankings, peer review excellence, academic institution, NLP research, computational linguistics{% endblock %}
 
-{% block og_title %}{{ institution.name }} - Institution Profile - ARR Great Reviewers{% endblock %}
-{% block og_description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
+{% block og_title %}{{ institution.name }} - ARR Great Reviewers{% endblock %}
+{% block og_description %}{{ institution.name }}: {{ institution.total_recognized }} reviews that were actually worth reading. {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 {% block og_type %}organization{% endblock %}
 
-{% block twitter_title %}{{ institution.name }} - Institution Profile - ARR Great Reviewers{% endblock %}
-{% block twitter_description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
+{% block twitter_title %}{{ institution.name }} - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}{{ institution.name }}: {{ institution.total_recognized }} reviews that were actually worth reading. {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 
 {% block schema_type %}Organization{% endblock %}
 {% block schema_name %}{{ institution.name }}{% endblock %}
-{% block schema_description %}View detailed profile and achievements of {{ institution.name }}. Total {{ institution.total_recognized }} great reviews with {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
+{% block schema_description %}{{ institution.name }}: {{ institution.total_recognized }} reviews that were actually worth reading. {{ "%.1f"|format(institution.recognition_rate * 100) }}% recognition rate from {{ institution.total_reviewers }} reviewers in ACL Rolling Review.{% endblock %}
 {% block schema_additional %},
     "knowsAbout": ["Peer Review", "Academic Publishing", "Natural Language Processing", "Computational Linguistics"],
     "memberOf": {

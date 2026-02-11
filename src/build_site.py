@@ -29,14 +29,17 @@ import multiprocessing as mp
 import shutil
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Tuple
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 TEMPLATES = Path("templates")
 SITE = Path("site")
 SITE.mkdir(parents=True, exist_ok=True)
+BASE_URL = "https://arrgreatreviewers.org"
 
 
 def render(template: str, context: dict, out: Path) -> None:
@@ -141,6 +144,52 @@ def generate_pages_parallel(
     )
 
     return successful
+
+
+def generate_sitemap(
+    cycles: list[str],
+    reviewer_db: dict,
+    institution_db: dict,
+) -> None:
+    """Generate sitemap.xml with all site pages."""
+    lastmod = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    urlset = Element("urlset")
+    urlset.set("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9")
+
+    def add_url(path: str, priority: str = "0.5", changefreq: str = "weekly") -> None:
+        url_el = SubElement(urlset, "url")
+        SubElement(url_el, "loc").text = f"{BASE_URL}{path}"
+        SubElement(url_el, "lastmod").text = lastmod
+        SubElement(url_el, "changefreq").text = changefreq
+        SubElement(url_el, "priority").text = priority
+
+    # Core pages
+    add_url("/", priority="1.0", changefreq="weekly")
+    add_url("/reviewers/", priority="0.9", changefreq="weekly")
+    add_url("/institutions/", priority="0.9", changefreq="weekly")
+    add_url("/about/", priority="0.7", changefreq="monthly")
+
+    # Cycle pages
+    for cycle in cycles:
+        add_url(f"/reviewers/{cycle}/", priority="0.7", changefreq="monthly")
+        add_url(f"/institutions/{cycle}/", priority="0.7", changefreq="monthly")
+
+    # Reviewer profiles
+    for openreview_id in reviewer_db:
+        url_safe_id = (
+            openreview_id.replace("~", "").replace("/", "-").replace("\\", "-")
+        )
+        add_url(f"/reviewer/{url_safe_id}/", priority="0.6", changefreq="monthly")
+
+    # Institution profiles
+    for url_safe_id in institution_db:
+        add_url(f"/institution/{url_safe_id}/", priority="0.6", changefreq="monthly")
+
+    xml_declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_body = tostring(urlset, encoding="unicode")
+    (SITE / "sitemap.xml").write_text(xml_declaration + xml_body, encoding="utf-8")
+    print(f"Generated sitemap.xml with {len(urlset)} URLs")
 
 
 def build_site(
@@ -379,6 +428,14 @@ def build_site(
     )
 
     (SITE / "404.html").write_text("Page not found", encoding="utf-8")
+
+    # Copy robots.txt to site root
+    robots_source = Path("static/robots.txt")
+    if robots_source.exists():
+        shutil.copy2(robots_source, SITE / "robots.txt")
+
+    # Generate sitemap.xml
+    generate_sitemap(cycles, reviewer_db, institution_db)
 
 
 if __name__ == "__main__":
