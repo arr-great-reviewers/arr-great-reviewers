@@ -4,6 +4,7 @@ import json
 import os
 import re
 import tomllib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -11,7 +12,16 @@ import requests
 import typer
 from bs4 import BeautifulSoup
 from rich.console import Console
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+    track,
+)
 from rich.table import Table
 
 app = typer.Typer(
@@ -114,8 +124,40 @@ def fetch_profile_from_api(profile_id: str) -> Optional[Dict]:
         return None
 
 
+def _read_cookies_raw() -> Optional[str]:
+    """Read the cookies JSON payload from env vars, or from ./openreview_cookies.json."""
+    cookies_json = os.getenv("OPENREVIEW_COOKIES_JSON")
+    cookies_file = os.getenv("OPENREVIEW_COOKIES_FILE")
+
+    if cookies_file:
+        try:
+            return Path(cookies_file).read_text(encoding="utf-8")
+        except OSError:
+            return None
+    if cookies_json:
+        return cookies_json
+
+    default_file = Path("openreview_cookies.json")
+    if default_file.exists():
+        try:
+            return default_file.read_text(encoding="utf-8")
+        except OSError:
+            return None
+    return None
+
+
+def _unwrap_cookies_list(parsed) -> list:
+    """Peel the common wrapper shapes ({cookies: [...]}, {data: {cookies: [...]}})."""
+    if isinstance(parsed, dict):
+        if isinstance(parsed.get("data"), dict) and "cookies" in parsed["data"]:
+            parsed = parsed["data"]["cookies"]
+        elif "cookies" in parsed:
+            parsed = parsed["cookies"]
+    return parsed if isinstance(parsed, list) else []
+
+
 def load_auth_cookies_from_env() -> list[dict]:
-    """Load OpenReview auth cookies from environment variables."""
+    """Load OpenReview auth cookies from environment variables or a cookies JSON file."""
     cookies: list[dict] = []
 
     access_token = os.getenv("OPENREVIEW_ACCESS_TOKEN")
@@ -139,41 +181,27 @@ def load_auth_cookies_from_env() -> list[dict]:
             }
         )
 
-    cookies_json = os.getenv("OPENREVIEW_COOKIES_JSON")
-    cookies_file = os.getenv("OPENREVIEW_COOKIES_FILE")
-    raw = None
-    if cookies_file:
-        try:
-            raw = Path(cookies_file).read_text(encoding="utf-8")
-        except OSError:
-            raw = None
-    elif cookies_json:
-        raw = cookies_json
-
+    raw = _read_cookies_raw()
     if raw:
         try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict) and "cookies" in parsed:
-                parsed = parsed["cookies"]
-            if isinstance(parsed, list):
-                for item in parsed:
-                    if not isinstance(item, dict):
-                        continue
-                    domain = item.get("domain") or ""
-                    if "openreview.net" not in domain:
-                        continue
-                    name = item.get("name")
-                    value = item.get("value")
-                    path = item.get("path", "/")
-                    if name and value:
-                        cookies.append(
-                            {
-                                "name": name,
-                                "value": value,
-                                "domain": domain,
-                                "path": path,
-                            }
-                        )
+            for item in _unwrap_cookies_list(json.loads(raw)):
+                if not isinstance(item, dict):
+                    continue
+                domain = item.get("domain") or ""
+                if "openreview.net" not in domain:
+                    continue
+                name = item.get("name")
+                value = item.get("value")
+                path = item.get("path", "/")
+                if name and value:
+                    cookies.append(
+                        {
+                            "name": name,
+                            "value": value,
+                            "domain": domain,
+                            "path": path,
+                        }
+                    )
         except json.JSONDecodeError:
             pass
 
@@ -191,29 +219,13 @@ def get_access_token_from_env() -> Optional[str]:
         _access_token = access_token
         return _access_token
 
-    cookies_json = os.getenv("OPENREVIEW_COOKIES_JSON")
-    cookies_file = os.getenv("OPENREVIEW_COOKIES_FILE")
-    raw = None
-    if cookies_file:
-        try:
-            raw = Path(cookies_file).read_text(encoding="utf-8")
-        except OSError:
-            raw = None
-    elif cookies_json:
-        raw = cookies_json
-
+    raw = _read_cookies_raw()
     if raw:
         try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict) and "cookies" in parsed:
-                parsed = parsed["cookies"]
-            if isinstance(parsed, dict) and "data" in parsed and "cookies" in parsed["data"]:
-                parsed = parsed["data"]["cookies"]
-            if isinstance(parsed, list):
-                for item in parsed:
-                    if isinstance(item, dict) and item.get("name") == "openreview.accessToken":
-                        _access_token = item.get("value")
-                        return _access_token
+            for item in _unwrap_cookies_list(json.loads(raw)):
+                if isinstance(item, dict) and item.get("name") == "openreview.accessToken":
+                    _access_token = item.get("value")
+                    return _access_token
         except json.JSONDecodeError:
             pass
 
@@ -429,8 +441,53 @@ def load_reviewer_data(data_dir: Path) -> List[Dict]:
     return reviewers
 
 
+def _make_progress() -> Progress:
+    """Progress bar with live counters in the description slot."""
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("•"),
+        TimeElapsedColumn(),
+        TextColumn("ETA"),
+        TimeRemainingColumn(),
+        console=console,
+        transient=False,
+    )
+
+
+def _classify_reviewer(reviewer: Dict, max_profiles: int) -> Optional[Dict]:
+    """Find OpenReview matches for a single reviewer and classify the result."""
+    name = reviewer.get("name", "")
+    institution = reviewer.get("institution", "")
+
+    if not name or not institution:
+        return None
+
+    matching_profiles = find_matching_profiles(name, institution, max_profiles)
+
+    if len(matching_profiles) == 1:
+        category = "single_matches"
+    elif len(matching_profiles) > 1:
+        category = "multiple_matches"
+    else:
+        category = "no_matches"
+
+    return {
+        "key": f"{name}|{institution}",
+        "name": name,
+        "institution": institution,
+        "matching_profiles": matching_profiles,
+        "category": category,
+    }
+
+
 def map_profiles(
-    reviewers: List[Dict], max_profiles: int = 30, output_file: Optional[Path] = None
+    reviewers: List[Dict],
+    max_profiles: int = 30,
+    output_file: Optional[Path] = None,
+    workers: int = 8,
 ) -> Dict:
     """Map reviewer names to OpenReview profiles"""
 
@@ -446,55 +503,66 @@ def map_profiles(
         "no_matches": {},
     }
 
-    # Process each reviewer
-    for reviewer in track(reviewers, description="Mapping profiles..."):
-        name = reviewer.get("name", "")
-        institution = reviewer.get("institution", "")
+    # Warm module-level caches before spawning workers to avoid benign races
+    # on _session / _access_token from concurrent first-touch.
+    get_requests_session()
+    if get_access_token_from_env():
+        console.print("[green]Authenticated with OpenReview[/green]")
+    else:
+        console.print(
+            "[yellow]No OpenReview auth token — private/redirected profiles will not resolve. "
+            "Set OPENREVIEW_COOKIES_FILE or drop openreview_cookies.json at repo root.[/yellow]"
+        )
 
-        if not name or not institution:
-            continue
+    def _desc() -> str:
+        m = results["metadata"]
+        return (
+            f"Mapping [green]✓{m['single_matches']}[/green] "
+            f"[yellow]⚠{m['multiple_matches']}[/yellow] "
+            f"[red]✗{m['no_matches']}[/red]"
+        )
 
-        results["metadata"]["total_processed"] += 1
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool, _make_progress() as progress:
+        futures = [
+            pool.submit(_classify_reviewer, reviewer, max_profiles)
+            for reviewer in reviewers
+        ]
+        task_id = progress.add_task(_desc(), total=len(futures))
+        for future in as_completed(futures):
+            classified = future.result()
+            if classified is None:
+                progress.update(task_id, advance=1)
+                continue
 
-        # Use the abstracted function to find matches
-        matching_profiles = find_matching_profiles(name, institution, max_profiles)
+            results["metadata"]["total_processed"] += 1
+            category = classified["category"]
+            key = classified["key"]
+            name = classified["name"]
+            institution = classified["institution"]
+            matching_profiles = classified["matching_profiles"]
 
-        # Categorize results
-        key = f"{name}|{institution}"
-
-        if len(matching_profiles) == 1:
-            results["single_matches"][key] = {
+            results[category][key] = {
                 "name": name,
                 "institution": institution,
                 "openreview_profiles": matching_profiles,
                 "match_count": len(matching_profiles),
             }
-            results["metadata"]["single_matches"] += 1
-            console.print(
-                f"[bright_green]✓ MATCH FOUND[/bright_green] for {name} @ {institution}"
-            )
-        elif len(matching_profiles) > 1:
-            results["multiple_matches"][key] = {
-                "name": name,
-                "institution": institution,
-                "openreview_profiles": matching_profiles,
-                "match_count": len(matching_profiles),
-            }
-            results["metadata"]["multiple_matches"] += 1
-            console.print(
-                f"[yellow]⚠ MULTIPLE MATCHES[/yellow] for {name} @ {institution}: {matching_profiles}"
-            )
-        else:
-            results["no_matches"][key] = {
-                "name": name,
-                "institution": institution,
-                "openreview_profiles": [],
-                "match_count": 0,
-            }
-            results["metadata"]["no_matches"] += 1
-            console.print(
-                f"[bright_red]✗ NO MATCH[/bright_red] for {name} @ {institution}"
-            )
+            results["metadata"][category] += 1
+
+            if category == "single_matches":
+                progress.console.print(
+                    f"[bright_green]✓ MATCH FOUND[/bright_green] for {name} @ {institution}"
+                )
+            elif category == "multiple_matches":
+                progress.console.print(
+                    f"[yellow]⚠ MULTIPLE MATCHES[/yellow] for {name} @ {institution}: {matching_profiles}"
+                )
+            else:
+                progress.console.print(
+                    f"[bright_red]✗ NO MATCH[/bright_red] for {name} @ {institution}"
+                )
+
+            progress.update(task_id, advance=1, description=_desc())
 
     # Save results
     if output_file:
@@ -551,7 +619,10 @@ def remove_key_from_results(results: Dict, key: str) -> None:
 
 
 def reprocess_no_matches(
-    results: Dict, max_profiles: int = 30, limit_keys: Optional[set] = None
+    results: Dict,
+    max_profiles: int = 30,
+    limit_keys: Optional[set] = None,
+    workers: int = 8,
 ) -> Dict:
     """Reprocess entries from no_matches and move found matches to appropriate sections"""
     if not results.get("no_matches"):
@@ -571,42 +642,71 @@ def reprocess_no_matches(
         f"[blue]Reprocessing {len(target_items)} unmatched entries...[/blue]"
     )
 
-    for key, entry in track(target_items.items(), description="Reprocessing..."):
-        name = entry["name"]
-        institution = entry["institution"]
+    # Warm module-level caches before spawning workers.
+    get_requests_session()
+    if get_access_token_from_env():
+        console.print("[green]Authenticated with OpenReview[/green]")
+    else:
+        console.print(
+            "[yellow]No OpenReview auth token — private/redirected profiles will not resolve.[/yellow]"
+        )
 
-        # Use the abstracted function to find matches
-        matching_profiles = find_matching_profiles(name, institution, max_profiles)
+    def _lookup(item):
+        key, entry = item
+        profiles = find_matching_profiles(
+            entry["name"], entry["institution"], max_profiles
+        )
+        return key, entry, profiles
 
-        # If matches found, move from no_matches to appropriate section
-        if matching_profiles:
-            # Remove from no_matches
-            del results["no_matches"][key]
-            results["metadata"]["no_matches"] -= 1
+    run_counts = {"single": 0, "multiple": 0, "still_none": 0}
 
-            # Update entry with found profiles
-            entry["openreview_profiles"] = matching_profiles
-            entry["match_count"] = len(matching_profiles)
+    def _desc() -> str:
+        return (
+            f"Reprocessing [green]✓{run_counts['single']}[/green] "
+            f"[yellow]⚠{run_counts['multiple']}[/yellow] "
+            f"[red]✗{run_counts['still_none']}[/red]"
+        )
 
-            # Add to appropriate section
-            if len(matching_profiles) == 1:
-                results["single_matches"][key] = entry
-                results["metadata"]["single_matches"] += 1
-                console.print(
-                    f"[bright_green]✓ NEW MATCH FOUND[/bright_green] for {name} @ {institution}"
-                )
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool, _make_progress() as progress:
+        futures = [pool.submit(_lookup, item) for item in target_items.items()]
+        task_id = progress.add_task(_desc(), total=len(futures))
+        for future in as_completed(futures):
+            key, entry, matching_profiles = future.result()
+            name = entry["name"]
+            institution = entry["institution"]
+
+            if matching_profiles:
+                # Remove from no_matches
+                del results["no_matches"][key]
+                results["metadata"]["no_matches"] -= 1
+
+                # Update entry with found profiles
+                entry["openreview_profiles"] = matching_profiles
+                entry["match_count"] = len(matching_profiles)
+
+                if len(matching_profiles) == 1:
+                    results["single_matches"][key] = entry
+                    results["metadata"]["single_matches"] += 1
+                    run_counts["single"] += 1
+                    progress.console.print(
+                        f"[bright_green]✓ NEW MATCH FOUND[/bright_green] for {name} @ {institution}"
+                    )
+                else:
+                    results["multiple_matches"][key] = entry
+                    results["metadata"]["multiple_matches"] += 1
+                    run_counts["multiple"] += 1
+                    progress.console.print(
+                        f"[yellow]⚠ NEW MULTIPLE MATCHES[/yellow] for {name} @ {institution}: {matching_profiles}"
+                    )
+
+                newly_found.append(entry)
             else:
-                results["multiple_matches"][key] = entry
-                results["metadata"]["multiple_matches"] += 1
-                console.print(
-                    f"[yellow]⚠ NEW MULTIPLE MATCHES[/yellow] for {name} @ {institution}: {matching_profiles}"
+                run_counts["still_none"] += 1
+                progress.console.print(
+                    f"[bright_red]✗ STILL NO MATCH[/bright_red] for {name} @ {institution}"
                 )
 
-            newly_found.append(entry)
-        else:
-            console.print(
-                f"[bright_red]✗ STILL NO MATCH[/bright_red] for {name} @ {institution}"
-            )
+            progress.update(task_id, advance=1, description=_desc())
 
     console.print("\n" + "=" * 60 + "\n")
     if newly_found:
@@ -750,6 +850,12 @@ def reprocess(
         "-m",
         help="Maximum number of profile variants to try (1 to N)",
     ),
+    workers: int = typer.Option(
+        8,
+        "--workers",
+        "-w",
+        help="Number of parallel workers for profile lookups",
+    ),
 ):
     """Reprocess no-matches from existing results file and update with any new matches found."""
 
@@ -773,7 +879,7 @@ def reprocess(
 
     # Reprocess no matches
     console.print("[blue]Reprocessing unmatched entries...[/blue]")
-    updated_results = reprocess_no_matches(results, max_profiles)
+    updated_results = reprocess_no_matches(results, max_profiles, workers=workers)
 
     # Save updated results back to file
     with open(results_file, "w", encoding="utf-8") as f:
@@ -815,6 +921,12 @@ def reprocess_top(
         "-m",
         help="Maximum number of profile variants to try (1 to N)",
     ),
+    workers: int = typer.Option(
+        8,
+        "--workers",
+        "-w",
+        help="Number of parallel workers for profile lookups",
+    ),
 ):
     """Reprocess no-matches only for top-N reviewers per cycle."""
 
@@ -835,7 +947,9 @@ def reprocess_top(
     console.print(
         f"[blue]Reprocessing no-matches for {len(target_keys)} top reviewers...[/blue]"
     )
-    updated_results = reprocess_no_matches(results, max_profiles, limit_keys=target_keys)
+    updated_results = reprocess_no_matches(
+        results, max_profiles, limit_keys=target_keys, workers=workers
+    )
 
     with open(results_file, "w", encoding="utf-8") as f:
         json.dump(updated_results, f, indent=2, ensure_ascii=False)
@@ -1084,6 +1198,12 @@ def incremental(
         "--reprocess-no-matches",
         help="Reprocess existing no-matches before scanning for new reviewers",
     ),
+    workers: int = typer.Option(
+        8,
+        "--workers",
+        "-w",
+        help="Number of parallel workers for profile lookups",
+    ),
 ):
     """Incrementally process only new reviewers not found in existing mapping results."""
 
@@ -1107,7 +1227,9 @@ def incremental(
 
     if reprocess_no_matches_flag:
         console.print("[blue]Reprocessing existing no-matches...[/blue]")
-        existing_results = reprocess_no_matches(existing_results, max_profiles)
+        existing_results = reprocess_no_matches(
+            existing_results, max_profiles, workers=workers
+        )
 
     # Load all reviewer data
     console.print(f"[blue]Loading reviewer data from {data_dir}...[/blue]")
@@ -1138,7 +1260,7 @@ def incremental(
 
     # Process only new reviewers
     console.print(f"[blue]Processing {len(new_reviewers)} new reviewers...[/blue]")
-    new_results = map_profiles(new_reviewers, max_profiles)
+    new_results = map_profiles(new_reviewers, max_profiles, workers=workers)
 
     # Merge with existing results
     merged_results = merge_mapping_results(existing_results, new_results)
@@ -1194,6 +1316,12 @@ def main(
     limit: Optional[int] = typer.Option(
         None, "--limit", "-l", help="Limit number of reviewers to process (for testing)"
     ),
+    workers: int = typer.Option(
+        8,
+        "--workers",
+        "-w",
+        help="Number of parallel workers for profile lookups",
+    ),
 ):
     """Map reviewer names to OpenReview profiles by matching institution information."""
 
@@ -1221,7 +1349,7 @@ def main(
     console.print(f"[blue]Found {len(reviewers)} reviewers to process[/blue]")
 
     # Map profiles
-    results = map_profiles(reviewers, max_profiles, output_file)
+    results = map_profiles(reviewers, max_profiles, output_file, workers=workers)
 
     # Display summary
     display_summary(results)

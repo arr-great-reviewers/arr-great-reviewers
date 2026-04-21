@@ -5,3 +5,4 @@ uvenv/
 site/
 data/
 !data/openreview_profile_mapping.json
+openreview_cookies.json
