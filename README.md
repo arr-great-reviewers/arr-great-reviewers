@@ -76,6 +76,10 @@ for profiles whose HTML pages do not expose history data.
 Name lookup is robust to punctuation differences (e.g., dotted initials or apostrophes),
 and uses a first/last-name API search fallback when needed.
 
+If automatic lookup finds multiple candidate profiles, the candidates remain in
+`multiple_matches` as evidence but no profile ID is used until a manual mapping resolves
+the ambiguity.
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages

@@ -457,6 +457,41 @@ def _make_progress() -> Progress:
     )
 
 
+def _reviewer_key(reviewer: Dict) -> Optional[str]:
+    """Return the stable reviewer key, or None for incomplete rows."""
+    name = reviewer.get("name", "")
+    institution = reviewer.get("institution", "")
+    if not name or not institution:
+        return None
+    return f"{name}|{institution}"
+
+
+def _deduplicate_reviewers(reviewers: List[Dict]) -> List[Dict]:
+    """Keep the first valid row for each name|institution key."""
+    seen = set()
+    unique_reviewers = []
+    for reviewer in reviewers:
+        key = _reviewer_key(reviewer)
+        if key is None:
+            unique_reviewers.append(reviewer)
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_reviewers.append(reviewer)
+    return unique_reviewers
+
+
+def _refresh_mapping_metadata(results: Dict) -> None:
+    """Keep summary counters consistent with category dictionaries."""
+    metadata = results.setdefault("metadata", {})
+    for category in ("single_matches", "multiple_matches", "no_matches"):
+        metadata[category] = len(results.get(category, {}))
+    metadata["total_processed"] = sum(
+        metadata[category] for category in ("single_matches", "multiple_matches", "no_matches")
+    )
+
+
 def _classify_reviewer(reviewer: Dict, max_profiles: int) -> Optional[Dict]:
     """Find OpenReview matches for a single reviewer and classify the result."""
     name = reviewer.get("name", "")
@@ -502,6 +537,7 @@ def map_profiles(
         "multiple_matches": {},
         "no_matches": {},
     }
+    reviewers = _deduplicate_reviewers(reviewers)
 
     # Warm module-level caches before spawning workers to avoid benign races
     # on _session / _access_token from concurrent first-touch.
@@ -564,6 +600,8 @@ def map_profiles(
 
             progress.update(task_id, advance=1, description=_desc())
 
+    _refresh_mapping_metadata(results)
+
     # Save results
     if output_file:
         with open(output_file, "w", encoding="utf-8") as f:
@@ -597,10 +635,9 @@ def load_manual_mappings() -> Dict[str, str]:
 
 
 def get_mapped_keys_for_links(results: Dict) -> set:
-    """Get reviewer keys that resolve to a link (single, multiple, or manual)."""
+    """Get reviewer keys that resolve to a link (single or manual)."""
     mapped = set()
     mapped.update(results.get("single_matches", {}).keys())
-    mapped.update(results.get("multiple_matches", {}).keys())
     mapped.update(load_manual_mappings().keys())
     return mapped
 
@@ -626,6 +663,7 @@ def reprocess_no_matches(
 ) -> Dict:
     """Reprocess entries from no_matches and move found matches to appropriate sections"""
     if not results.get("no_matches"):
+        _refresh_mapping_metadata(results)
         console.print("[blue]No unmatched entries to reprocess[/blue]")
         return results
 
@@ -721,6 +759,8 @@ def reprocess_no_matches(
             "[bright_blue]No new matches found during reprocessing[/bright_blue]"
         )
 
+    _refresh_mapping_metadata(results)
+
     return results
 
 
@@ -783,41 +823,28 @@ def load_top_reviewer_keys(
 
 
 def find_new_reviewers(reviewers: List[Dict], existing_results: Dict) -> List[Dict]:
-    """Find reviewers that haven't been processed yet"""
-    mapped_keys = get_all_mapped_keys(existing_results)
+    """Find unseen reviewers, keeping the first occurrence for each key."""
+    seen = set(get_all_mapped_keys(existing_results))
     new_reviewers = []
 
     for reviewer in reviewers:
-        name = reviewer.get("name", "")
-        institution = reviewer.get("institution", "")
-
-        if not name or not institution:
+        key = _reviewer_key(reviewer)
+        if key is None or key in seen:
             continue
-
-        key = f"{name}|{institution}"
-        if key not in mapped_keys:
-            new_reviewers.append(reviewer)
+        seen.add(key)
+        new_reviewers.append(reviewer)
 
     return new_reviewers
 
 
 def merge_mapping_results(existing_results: Dict, new_results: Dict) -> Dict:
-    """Merge new mapping results into existing results"""
+    """Merge new mapping results and derive metadata from stored categories."""
     merged = existing_results.copy()
 
-    # Update metadata
-    merged["metadata"]["total_processed"] += new_results["metadata"]["total_processed"]
-    merged["metadata"]["single_matches"] += new_results["metadata"]["single_matches"]
-    merged["metadata"]["multiple_matches"] += new_results["metadata"][
-        "multiple_matches"
-    ]
-    merged["metadata"]["no_matches"] += new_results["metadata"]["no_matches"]
+    for category in ("single_matches", "multiple_matches", "no_matches"):
+        merged.setdefault(category, {}).update(new_results.get(category, {}))
 
-    # Merge each category
-    for category in ["single_matches", "multiple_matches", "no_matches"]:
-        if category in new_results:
-            merged[category].update(new_results[category])
-
+    _refresh_mapping_metadata(merged)
     return merged
 
 

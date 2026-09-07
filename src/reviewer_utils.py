@@ -84,10 +84,8 @@ def get_reviewer_openreview_id(
         profiles = mappings["single_matches"][key]["openreview_profiles"]
         return profiles[0] if profiles else None
 
-    # For multiple matches, return the first one (could be improved with disambiguation)
-    if key in mappings.get("multiple_matches", {}):
-        profiles = mappings["multiple_matches"][key]["openreview_profiles"]
-        return profiles[0] if profiles else None
+    # Multiple matches are evidence only; do not choose an arbitrary profile.
+    # Resolve these through a manual mapping before including them.
 
     return None
 
