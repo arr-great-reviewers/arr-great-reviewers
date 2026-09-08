@@ -20,7 +20,6 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
     TimeRemainingColumn,
-    track,
 )
 from rich.table import Table
 

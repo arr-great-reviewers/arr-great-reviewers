@@ -2,6 +2,7 @@
 
 import json
 import tomllib
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -24,6 +25,7 @@ def get_reviewer_unique_id(
     return openreview_id if openreview_id else None
 
 
+@lru_cache(maxsize=1)
 def load_manual_mappings() -> Dict[str, str]:
     """
     Load the manual OpenReview profile mappings from TOML file.
@@ -297,6 +299,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
         print("No raw data directory found for cycle rankings")
         return reviewer_db
 
+    mappings = load_reviewer_mappings()
+
     for cycle_file in sorted(data_dir.glob("*.json")):
         cycle = cycle_file.stem
 
@@ -311,17 +315,12 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
         for i, reviewer_data in enumerate(cycle_ranking):
             rank = i + 1
 
-            # Find this reviewer in the database to assign achievement
-            reviewer_found = False
-            for unique_id, reviewer in reviewer_db.items():
-                if (
-                    reviewer["name"] == reviewer_data["name"]
-                    and reviewer.get("institution", "") == reviewer_data["institution"]
-                ):
-                    reviewer_found = True
-                    break
-
-            if not reviewer_found:
+            # Resolve through the OpenReview mapping so reviewers who changed
+            # affiliation still get badges for their earlier cycles.
+            unique_id = get_reviewer_openreview_id(
+                reviewer_data["name"], reviewer_data["institution"], mappings
+            )
+            if unique_id not in reviewer_db:
                 continue
 
             if rank == 1:
