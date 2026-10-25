@@ -17,6 +17,7 @@
 #   map-openreview-check    - Fail if any reviewers remain unmapped
 #   map-openreview-check-top - Fail if any top-N reviewers per cycle remain unmapped
 #   map-openreview-reprocess-top - Reprocess no-matches only for top-N reviewers per cycle
+#   contacts                - Collect contact candidates for the top 100 reviewers (data/contacts/)
 #
 # Fast development workflow:
 #   1. Use 'make build-fast' during development to avoid generating 2000+ reviewer pages
@@ -24,7 +25,7 @@
 #   3. Use 'make build-single-institution' to test institution page functionality
 #   4. Use 'make build' for final complete build
 
-.PHONY: build build-mapped data metrics site site-fast site-single-reviewer site-single-institution build-fast build-single-reviewer build-single-institution map-openreview map-openreview-incremental map-openreview-check map-openreview-check-top map-openreview-reprocess-top
+.PHONY: build build-mapped data metrics site site-fast site-single-reviewer site-single-institution build-fast build-single-reviewer build-single-institution map-openreview map-openreview-incremental map-openreview-check map-openreview-check-top map-openreview-reprocess-top contacts
 
 VENV=.venv
 PY=$(VENV)/bin/python
@@ -93,3 +94,6 @@ map-openreview: install
 
 map-openreview-incremental: install
 	$(PY) -m src.map_openreview_profiles incremental
+
+contacts: install
+	$(PY) -m src.collect_contacts --top-n 100

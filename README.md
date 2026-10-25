@@ -83,6 +83,23 @@ If automatic lookup finds multiple candidate profiles, the candidates remain in
 `multiple_matches` as evidence but no profile ID is used until a manual mapping resolves
 the ambiguity.
 
+### Reviewer contact details
+
+- **`make contacts`** - Collect contact candidates for the top 100 reviewers overall (`--top-n` changes the cutoff)
+
+For each reviewer the collector fetches the OpenReview profile in one batched,
+authenticated request (same cookies as above), crawls the listed homepage — including
+same-site JS bundles and a few contact-like pages, and decoding Cloudflare and
+shifted-`mailto:` obfuscation — and, when that finds nothing, reads the first page of
+recent papers from the reviewer's ACL Anthology author page. Paper and JS-bundle
+addresses are only kept when they resemble one of the reviewer's OpenReview names.
+
+Each candidate is scored against the masked email domains OpenReview shows
+(`****@cmu.edu`): `high` means the domain matches, `medium` means only the name
+matches. The result is written to `data/contacts/top100_contacts.{csv,json}`, which is
+gitignored and contains personal data: check every row by hand before sending
+anything, and delete the files when you are done.
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages
