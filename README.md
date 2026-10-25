@@ -88,17 +88,29 @@ the ambiguity.
 - **`make contacts`** - Collect contact candidates for the top 100 reviewers overall (`--top-n` changes the cutoff)
 
 For each reviewer the collector fetches the OpenReview profile in one batched,
-authenticated request (same cookies as above), crawls the listed homepage — including
-same-site JS bundles and a few contact-like pages, and decoding Cloudflare and
-shifted-`mailto:` obfuscation — and, when that finds nothing, reads the first page of
-recent papers from the reviewer's ACL Anthology author page. Paper and JS-bundle
-addresses are only kept when they resemble one of the reviewer's OpenReview names.
+authenticated request (same cookies as above) and crawls the listed homepage —
+including same-site JS bundles and a few contact-like pages, and decoding Cloudflare and
+shifted-`mailto:` obfuscation. Reviewers still without a domain-confirmed address then
+get the first pages of up to 25 recent papers from their ACL Anthology author page read,
+and finally up to 15 recent arXiv papers found by author name (throttled to one request
+every 3 seconds).
+
+Paper headers list every co-author, so a paper address is kept only if it clearly
+resembles one of the reviewer's OpenReview names (`ido.dagan`, `nbalepur`), or if it is
+an initials-style username (`th656`, `nv2006`, `cli`) on an institutional domain from
+their OpenReview profile. arXiv name searches return namesakes, so arXiv addresses must
+be domain-confirmed.
 
 Each candidate is scored against the masked email domains OpenReview shows
-(`****@cmu.edu`): `high` means the domain matches, `medium` means only the name
-matches. The result is written to `data/contacts/top100_contacts.{csv,json}`, which is
-gitignored and contains personal data: check every row by hand before sending
-anything, and delete the files when you are done.
+(`****@cmu.edu`): `high` means an institutional domain from the profile matches, or a
+gmail-style domain from the profile plus a name match; `medium` means only the name
+matches. Addresses that only the layout of a paper can attribute go in
+`data/contacts/manual_contacts.toml` (keyed by OpenReview id, with `email`, `source`,
+`note`); they override automatic results and are marked `manual`.
+
+The result is written to `data/contacts/top100_contacts.{csv,json}`. Everything under
+`data/contacts/` is gitignored and contains personal data: check every row by hand
+before sending anything, and delete the files when you are done.
 
 ### Performance comparison
 

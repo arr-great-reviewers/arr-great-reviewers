@@ -15,10 +15,13 @@ import html
 import json
 import re
 import subprocess
+import threading
+import time
+import tomllib
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
 from urllib.parse import unquote, urljoin, urlparse
 
 import requests
@@ -43,7 +46,9 @@ USER_AGENT = (
 )
 MAX_EXTRA_PAGES = 4
 MAX_SCRIPTS = 3
-MAX_PAPERS = 6
+MAX_PAPERS = 25
+MAX_ARXIV_PAPERS = 15
+ARXIV_DELAY_SECONDS = 3  # arXiv asks API clients for one request every 3 seconds
 MAX_PAGE_BYTES = 2_000_000
 MAX_PDF_BYTES = 30_000_000
 EXTRA_PAGE_HINT = re.compile(r"contact|about|cv|bio|me\b|people|home", re.I)
@@ -269,8 +274,20 @@ def _fold(s: str) -> str:
 UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
 
 
+def _name_parts(names: List[str]) -> List[List[str]]:
+    variants = {_fold(n) for n in names} | {
+        _fold(n.lower().translate(UMLAUTS)) for n in names
+    }
+    out = []
+    for variant in variants:
+        parts = [p for p in variant.replace("-", " ").split() if len(p) >= 2]
+        if parts:
+            out.append(parts)
+    return out
+
+
 def name_matches(email: str, names: List[str]) -> bool:
-    """Whether the local part plausibly belongs to any of `names` (all OpenReview names).
+    """Whether the local part clearly belongs to any of `names` (all OpenReview names).
 
     Accepts: the surname anywhere (short surnames like "wang" also need the given
     name or its initial), the given name as a prefix, or the initials.
@@ -278,13 +295,7 @@ def name_matches(email: str, names: List[str]) -> bool:
     local = _fold(email.partition("@")[0]).replace(" ", "")
     if not local:
         return False
-    variants = {_fold(n) for n in names} | {
-        _fold(n.lower().translate(UMLAUTS)) for n in names
-    }
-    for variant in variants:
-        parts = [p for p in variant.replace("-", " ").split() if len(p) >= 2]
-        if not parts:
-            continue
+    for parts in _name_parts(names):
         given, surname = parts[0], parts[-1]
         if local == "".join(p[0] for p in parts):
             return True
@@ -296,6 +307,37 @@ def name_matches(email: str, names: List[str]) -> bool:
     return False
 
 
+def initials_match(email: str, names: List[str]) -> bool:
+    """Institutional usernames built from initials: th656, nv2006, nvit, cli, wolf.
+
+    Too weak on its own (any co-author could match); only trusted together with a
+    confirmed domain.
+    """
+    local = re.sub(r"[^a-z]", "", _fold(email.partition("@")[0]))
+    if not local:
+        return False
+    for parts in _name_parts(names):
+        given, surname = parts[0], parts[-1]
+        initials = "".join(p[0] for p in parts)
+        if local in (initials, surname, given[0] + surname):
+            return True
+        if (
+            local.startswith(given[0])
+            and len(local) >= 3
+            and surname.startswith(local[1:])
+        ):
+            return True
+    return False
+
+
+FREEMAIL = {
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com",
+    "yahoo.com", "icloud.com", "me.com", "proton.me", "protonmail.com",
+    "163.com", "126.com", "qq.com", "foxmail.com", "mail.ru", "yandex.ru",
+    "naver.com",
+}  # fmt: skip
+
+
 def domain_matches(email: str, or_domains: List[str]) -> bool:
     domain = email.partition("@")[2]
     return any(
@@ -304,13 +346,25 @@ def domain_matches(email: str, or_domains: List[str]) -> bool:
     )
 
 
+def institutional_match(email: str, or_domains: List[str]) -> bool:
+    """Domain is on the OpenReview profile and is not a shared provider like gmail."""
+    return email.partition("@")[2] not in FREEMAIL and domain_matches(email, or_domains)
+
+
 def score_email(email: str, or_domains: List[str], names: List[str]) -> int:
-    """3 = domain matches an OpenReview-confirmed email domain; +1 = local part resembles a name."""
-    return 3 * domain_matches(email, or_domains) + name_matches(email, names)
+    """Domain on the OpenReview profile: +3 (institutional) or +2 (gmail & co., which
+    many namesakes share); +1 when the local part resembles a name.
+
+    Initials-style usernames count as a name only on a confirmed institutional domain.
+    """
+    if institutional_match(email, or_domains):
+        return 3 + (name_matches(email, names) or initials_match(email, names))
+    freemail = email.partition("@")[2] in FREEMAIL and domain_matches(email, or_domains)
+    return 2 * freemail + name_matches(email, names)
 
 
 def confidence(score: int) -> str:
-    return {4: "high", 3: "high", 1: "medium"}.get(score, "low")
+    return "high" if score >= 3 else "medium" if score >= 1 else "low"
 
 
 # ------------------------------------------------------------------ Fetching
@@ -350,11 +404,12 @@ def fetch(
     url: str,
     accept: Tuple[str, ...] = ("html",),
     max_bytes: int = MAX_PAGE_BYTES,
+    params: Optional[Dict] = None,
 ) -> Fetched:
     """GET `url`; reject unexpected content types before downloading and cap the body size."""
     try:
         with session.get(
-            url, timeout=(10, 30), allow_redirects=True, stream=True
+            url, params=params, timeout=(10, 30), allow_redirects=True, stream=True
         ) as resp:
             if resp.status_code != 200:
                 return Fetched(url, b"", f"HTTP {resp.status_code}")
@@ -467,30 +522,93 @@ def first_page_text(session: requests.Session, pdf_url: str) -> str:
     return proc.stdout.decode("utf-8", errors="replace")
 
 
-def search_papers(anthology_url: str, names: List[str]) -> Dict:
-    """Scan recent papers' first pages for an address that matches the reviewer's name.
+def scan_pdfs(
+    session: requests.Session,
+    pdfs: List[str],
+    names: List[str],
+    or_domains: List[str],
+    domain_required: bool,
+    before_each: Callable[[], None] = lambda: None,
+) -> Dict[str, str]:
+    """Collect the reviewer's addresses from paper first pages, newest first.
 
-    Paper headers list every co-author, so a name match is required here.
+    Headers list every co-author, so a candidate needs a clear name match, or an
+    initials-style username on a domain from the reviewer's OpenReview profile. Stops
+    at the first domain-confirmed address; `domain_required` keeps only those.
     """
+    found: Dict[str, str] = {}
+    for pdf in pdfs:
+        before_each()
+        for email in extract_paper_emails(first_page_text(session, pdf)):
+            confirmed = institutional_match(email, or_domains) and (
+                name_matches(email, names) or initials_match(email, names)
+            )
+            if confirmed or (not domain_required and name_matches(email, names)):
+                found.setdefault(email, pdf)
+        if any(score_email(e, or_domains, names) == 4 for e in found):
+            break
+    return found
+
+
+def search_anthology(
+    anthology_url: str, names: List[str], or_domains: List[str]
+) -> Dict:
+    """Scan the first pages of recent papers on the reviewer's ACL Anthology page."""
     session = _session()
-    result: Dict = {"emails": {}, "status": ""}
     if not anthology_url:
-        result["status"] = "no ACL Anthology link on OpenReview"
-        return result
+        return {"emails": {}, "status": "no ACL Anthology link on OpenReview"}
     pdfs, error = recent_paper_pdfs(session, anthology_url)
     if not pdfs:
-        result["status"] = error
-        return result
-    for pdf in pdfs[:MAX_PAPERS]:
-        for email in extract_paper_emails(first_page_text(session, pdf)):
-            if name_matches(email, names):
-                result["emails"].setdefault(email, pdf)
-        if result["emails"]:
-            return result
-    result["status"] = (
-        f"no matching email in {min(len(pdfs), MAX_PAPERS)} recent papers"
+        return {"emails": {}, "status": error}
+    pdfs = pdfs[:MAX_PAPERS]
+    emails = scan_pdfs(session, pdfs, names, or_domains, domain_required=False)
+    status = "" if emails else f"no matching email in {len(pdfs)} Anthology papers"
+    return {"emails": emails, "status": status}
+
+
+class ArxivThrottle:
+    """Serialise arXiv requests to one every ARXIV_DELAY_SECONDS."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.last = 0.0
+
+    def __call__(self) -> None:
+        with self.lock:
+            wait = self.last + ARXIV_DELAY_SECONDS - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self.last = time.monotonic()
+
+
+def search_arxiv(
+    name: str, names: List[str], or_domains: List[str], throttle: ArxivThrottle
+) -> Dict:
+    """Scan recent arXiv papers by author name.
+
+    A name search returns every namesake, so only domain-confirmed addresses count.
+    """
+    session = _session()
+    throttle()
+    feed = fetch(
+        session,
+        "https://export.arxiv.org/api/query",
+        accept=("xml",),
+        params={
+            "search_query": f'au:"{name}"',
+            "sortBy": "submittedDate",
+            "max_results": MAX_ARXIV_PAPERS,
+        },
     )
-    return result
+    if feed.error:
+        return {"emails": {}, "status": f"arXiv search {feed.error}"}
+    ids = re.findall(r"<id>https?://arxiv\.org/abs/([^<]+?)(?:v\d+)?</id>", feed.text)
+    pdfs = [f"https://arxiv.org/pdf/{i}" for i in ids]
+    emails = scan_pdfs(
+        session, pdfs, names, or_domains, domain_required=True, before_each=throttle
+    )
+    status = "" if emails else f"no domain-confirmed email in {len(pdfs)} arXiv papers"
+    return {"emails": emails, "status": status}
 
 
 # ---------------------------------------------------------------------- CLI
@@ -518,21 +636,37 @@ FIELDS = [
 ]
 
 
-def _apply(row: Dict, emails: Dict[str, str]) -> None:
-    """Pick the best-scoring candidate for `row`, keeping the rest for manual review."""
+def _apply(row: Dict, emails: Dict[str, str], stage: str, note: str) -> None:
+    """Merge `emails` into the row's candidates and re-pick the best-scoring one."""
+    candidates = row["candidates"]
+    for email, source in emails.items():
+        candidates.setdefault(email, source)
+    row["status"].append(f"{stage}: {len(emails)} found" if emails else note)
+    if not candidates:
+        return
     ranked = sorted(
-        emails.items(),
-        key=lambda kv: -score_email(
-            kv[0], row["openreview_email_domains"], row["names"]
-        ),
+        candidates,
+        key=lambda e: -score_email(e, row["openreview_email_domains"], row["names"]),
     )
-    best, source = ranked[0]
-    row["email"] = best
-    row["email_source"] = source
+    row["email"] = ranked[0]
+    row["email_source"] = candidates[ranked[0]]
     row["confidence"] = confidence(
-        score_email(best, row["openreview_email_domains"], row["names"])
+        score_email(ranked[0], row["openreview_email_domains"], row["names"])
     )
-    row["other_candidates"] = [e for e, _ in ranked[1:]]
+    row["other_candidates"] = ranked[1:]
+
+
+def load_manual_contacts(path: Path) -> Dict[str, Dict]:
+    """Hand-verified addresses keyed by OpenReview id (gitignored, like the output).
+
+    ["~Jane_Doe1"]
+    email = "jane@example.org"
+    source = "https://aclanthology.org/2024.acl-long.1.pdf"
+    note = "listed under her name in the paper header"
+    """
+    if not path.exists():
+        return {}
+    return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
 @app.command()
@@ -541,6 +675,10 @@ def main(
     db_file: Path = typer.Option(Path("data/reviewers_database.json")),
     out_dir: Path = typer.Option(Path("data/contacts")),
     workers: int = typer.Option(8, help="Parallel homepage crawls."),
+    manual_file: Path = typer.Option(
+        Path("data/contacts/manual_contacts.toml"),
+        help="Hand-verified addresses that override automatic results.",
+    ),
 ):
     reviewers = load_top_reviewers(db_file, top_n)
     console.print(f"Top {top_n}: {len(reviewers)} reviewers")
@@ -558,6 +696,7 @@ def main(
         rows.append(
             {
                 "rank": r["rank"],
+                "openreview_id": r["openreview_id"],
                 "name": r["name"],
                 # Every name on the profile (former names, transliterations) for email matching.
                 "names": list(
@@ -581,7 +720,8 @@ def main(
                 "gscholar": content.get("gscholar", ""),
                 "aclanthology": content.get("aclanthology", ""),
                 "semantic_scholar": content.get("semanticScholar", ""),
-                "status": "" if profile else "openreview profile not found",
+                "status": [] if profile else ["openreview profile not found"],
+                "candidates": {},
             }
         )
 
@@ -595,30 +735,51 @@ def main(
             )
         )
     for row, crawl in zip(rows, crawls):
-        if crawl["emails"]:
-            _apply(row, crawl["emails"])
-            row["status"] = "found on homepage"
-        else:
-            row["status"] = "; ".join(filter(None, [row["status"], crawl["status"]]))
+        _apply(row, crawl["emails"], "homepage", crawl["status"])
 
-    # Paper fallback: few workers, to stay polite to the ACL Anthology.
-    missing = [row for row in rows if "email" not in row]
-    console.print(
-        f"Searching recent papers for {len(missing)} reviewers without an email"
-    )
+    def unconfirmed() -> List[Dict]:
+        return [row for row in rows if row.get("confidence") != "high"]
+
+    # Paper fallbacks for everyone without a domain-confirmed address; few workers,
+    # to stay polite to the ACL Anthology and arXiv.
+    todo = unconfirmed()
+    console.print(f"Searching ACL Anthology papers for {len(todo)} reviewers")
     with ThreadPoolExecutor(max_workers=3) as pool:
         searches = list(
             pool.map(
-                lambda row: search_papers(row["aclanthology"], row["names"]),
-                missing,
+                lambda row: search_anthology(
+                    row["aclanthology"], row["names"], row["openreview_email_domains"]
+                ),
+                todo,
             )
         )
-    for row, search in zip(missing, searches):
-        if search["emails"]:
-            _apply(row, search["emails"])
-            row["status"] = "found in paper"
-        else:
-            row["status"] = f"{row['status']}; {search['status']}"
+    for row, search in zip(todo, searches):
+        _apply(row, search["emails"], "anthology", search["status"])
+
+    todo = unconfirmed()
+    console.print(f"Searching arXiv papers for {len(todo)} reviewers")
+    throttle = ArxivThrottle()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        searches = list(
+            pool.map(
+                lambda row: search_arxiv(
+                    row["name"], row["names"], row["openreview_email_domains"], throttle
+                ),
+                todo,
+            )
+        )
+    for row, search in zip(todo, searches):
+        _apply(row, search["emails"], "arxiv", search["status"])
+
+    manual = load_manual_contacts(manual_file)
+    for row in rows:
+        if entry := manual.get(row["openreview_id"]):
+            if row.get("email") and row["email"] != entry["email"]:
+                row["other_candidates"] = [row["email"], *row["other_candidates"]]
+            row["email"] = entry["email"]
+            row["email_source"] = entry.get("source", "")
+            row["confidence"] = "manual"
+            row["status"].append(f"manual: {entry.get('note', '')}".rstrip(": "))
 
     out_dir.mkdir(parents=True, exist_ok=True)
     json_file = out_dir / f"top{top_n}_contacts.json"
@@ -633,6 +794,7 @@ def main(
             writer.writerow(
                 {
                     **row,
+                    "status": "; ".join(row["status"]),
                     "openreview_email_domains": "; ".join(
                         row["openreview_email_domains"]
                     ),
