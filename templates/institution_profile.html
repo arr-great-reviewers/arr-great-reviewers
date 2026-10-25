@@ -162,7 +162,7 @@
         {% for cycle_name, cycle_data in institution.cycles.items() %}
         <div class="cycle-card">
           <div class="cycle-header">
-            <h3>{{ cycle_name.replace('_', '-') }}</h3>
+            <h3>{{ cycle_name|cycle_label }}</h3>
             <a href="/institutions/{{ cycle_name }}/" class="cycle-link">View Cycle</a>
           </div>
           <div class="cycle-stats">
@@ -232,7 +232,7 @@
   padding: 0.5rem 1rem;
   background: var(--bg-secondary);
   border-radius: 6px;
-  border-left: 3px solid var(--primary-color);
+  border-left: 3px solid var(--primary-ink);
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
@@ -267,7 +267,7 @@
 .stat-number {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   margin-bottom: 0.5rem;
 }
 
@@ -385,7 +385,7 @@
 .show-more-btn {
   background: none;
   border: none;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
@@ -401,7 +401,7 @@
 }
 
 .show-more-btn:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid var(--primary-ink);
   outline-offset: 2px;
 }
 
@@ -451,7 +451,7 @@
 }
 
 .cycle-link {
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
@@ -476,7 +476,7 @@
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 .cycle-stat .stat-label {
@@ -494,7 +494,7 @@
 }
 
 .progress-fill {
-  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  background: linear-gradient(90deg, var(--primary-ink), var(--accent-color));
   height: 100%;
   transition: width 0.3s ease;
 }

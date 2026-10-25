@@ -6,10 +6,178 @@
 // Global variables
 let reviewerDatabase = null;
 
+const CYCLE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Human-readable ARR cycle label: '2024_12' or '2024-12' -> 'Dec 2024'.
+ * Mirrors format_cycle in src/reviewer_utils.py.
+ */
+function formatCycle(cycle) {
+  const match = /^(\d{4})[_-](\d{1,2})$/.exec(String(cycle));
+  const month = match ? Number(match[2]) : 0;
+  return month >= 1 && month <= 12 ? `${CYCLE_MONTHS[month - 1]} ${match[1]}` : cycle;
+}
+
+/**
+ * Chart colors resolved from CSS custom properties, so Plotly follows light/dark mode.
+ */
+const ChartTheme = {
+  colors() {
+    const style = getComputedStyle(document.documentElement);
+    const value = name => style.getPropertyValue(name).trim();
+    return {
+      text: value('--text-secondary'),
+      textStrong: value('--text-primary'),
+      grid: value('--border-color'),
+      surface: value('--bg-primary'),
+      bar: value('--chart-bar'),
+      barText: value('--chart-bar-text'),
+      medals: [value('--medal-gold'), value('--medal-silver'), value('--medal-bronze')],
+      medalText: value('--medal-text')
+    };
+  },
+
+  baseLayout(colors) {
+    return {
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      font: {
+        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        size: 12,
+        color: colors.text
+      },
+      hoverlabel: {
+        bgcolor: colors.surface,
+        bordercolor: colors.grid,
+        font: { color: colors.textStrong }
+      },
+      showlegend: false
+    };
+  },
+
+  /** Run render now and again whenever the site theme changes. */
+  bind(render) {
+    render();
+    document.addEventListener('themechange', render);
+  }
+};
+
+/**
+ * Light/dark theme. The inline script in base.html sets <html data-theme> before first paint;
+ * this wires the header toggle and keeps following the system setting until the user picks.
+ */
+const THEME_STORAGE_KEY = 'theme';
+
+function readSavedTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.dispatchEvent(new CustomEvent('themechange'));
+}
+
+function initializeThemeToggle() {
+  const button = document.querySelector('.theme-toggle');
+  if (!button) return;
+
+  const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+  const syncLabel = () => {
+    button.setAttribute('aria-label', isDark() ? 'Switch to light mode' : 'Switch to dark mode');
+  };
+
+  button.addEventListener('click', () => {
+    const next = isDark() ? 'light' : 'dark';
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch (e) {
+      // Storage unavailable (private mode); the choice lasts for this page only.
+    }
+    applyTheme(next);
+    syncLabel();
+  });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+    if (readSavedTheme()) return;
+    applyTheme(event.matches ? 'dark' : 'light');
+    syncLabel();
+  });
+
+  syncLabel();
+}
+
+/**
+ * Horizontal ranked bar chart: rank 1 on top, gold/silver/bronze for the first three.
+ * Bars are positioned by index so two people with the same name stay separate rows.
+ */
+function renderRankedBarChart(elementId, { items, valueTitle, range, hovertemplate, onClick }) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+
+  const rowHeight = 32;
+  element.style.height = `${items.length * rowHeight + 70}px`;
+  const positions = items.map((_, i) => i);
+  // Counts are whole numbers; stop Plotly from placing ticks at 0.5, 1.5, ... on small ranges.
+  const maxValue = Math.max(0, ...items.map(item => item.value));
+  const integerTicks = !range && maxValue <= 10 ? { dtick: 1 } : {};
+
+  ChartTheme.bind(() => {
+    const colors = ChartTheme.colors();
+    const trace = {
+      type: 'bar',
+      orientation: 'h',
+      x: items.map(item => item.value),
+      y: positions,
+      customdata: items.map(item => [item.label, ...(item.extra || [])]),
+      hovertemplate,
+      marker: { color: items.map((_, i) => colors.medals[i] || colors.bar) },
+      text: items.map(item => item.text),
+      textposition: 'auto',
+      insidetextanchor: 'end',
+      insidetextfont: { size: 13, color: items.map((_, i) => (i < 3 ? colors.medalText : colors.barText)) },
+      outsidetextfont: { size: 13, color: colors.textStrong },
+      cliponaxis: false
+    };
+    const layout = {
+      ...ChartTheme.baseLayout(colors),
+      margin: { l: 10, r: 30, t: 10, b: 50 },
+      bargap: 0.25,
+      xaxis: {
+        title: valueTitle,
+        range,
+        rangemode: 'tozero',
+        ...integerTicks,
+        gridcolor: colors.grid,
+        zerolinecolor: colors.grid,
+        fixedrange: true
+      },
+      yaxis: {
+        tickmode: 'array',
+        tickvals: positions,
+        ticktext: items.map(item => item.label),
+        tickfont: { size: 13, color: colors.textStrong },
+        autorange: 'reversed',
+        automargin: true,
+        fixedrange: true
+      }
+    };
+    Plotly.react(element, [trace], layout, { responsive: true, displayModeBar: false });
+  });
+
+  if (onClick) {
+    element.on('plotly_click', event => onClick(event.points[0].pointIndex));
+  }
+}
+
 // Initialize site functionality when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
   initializeNavigation();
   initializeNavSearch();
+  initializeThemeToggle();
   initializeAnimations();
   loadReviewerDatabase();
 });
@@ -178,6 +346,9 @@ function initializeAnimations() {
     return rect.top < (windowHeight + 200) && rect.bottom > -200;
   }
 
+  // Content stays visible for reduced-motion users; the CSS fade is also disabled for them.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
   // Wait for next frame to ensure DOM is fully rendered
   requestAnimationFrame(() => {
     // Observe all elements with animate-fade-in class
@@ -272,7 +443,7 @@ function showLoading(elementId) {
   if (element) {
     element.innerHTML = `
       <div style="display: flex; justify-content: center; align-items: center; height: 100%; min-height: 200px;">
-        <div style="width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <div style="width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--primary-ink); border-radius: 50%; animation: spin 1s linear infinite;"></div>
       </div>
     `;
   }
@@ -631,7 +802,7 @@ function makeEnhancedTable(tableId, config = {}) {
       'left: 50%;' +
       'transform: translate(-50%, -50%);' +
       'background: var(--bg-primary);' +
-      'border: 1px solid var(--primary-color);' +
+      'border: 1px solid var(--primary-ink);' +
       'border-radius: 0.75rem;' +
       'padding: 1.5rem;' +
       'box-shadow: var(--shadow-xl);' +
@@ -643,7 +814,7 @@ function makeEnhancedTable(tableId, config = {}) {
     let detailContent;
     if (isInstitutionTable) {
       detailContent = 
-        '<h3 style="margin: 0 0 1rem 0; color: var(--primary-color);">🏛️ Institution Details</h3>' +
+        '<h3 style="margin: 0 0 1rem 0; color: var(--primary-ink);">🏛️ Institution Details</h3>' +
         '<p><strong>Institution:</strong> ' + item.institution + '</p>' +
         '<p><strong>Rank:</strong> #' + item.rank + '</p>' +
         '<p><strong>Total Reviewers:</strong> ' + item.metric1 + '</p>' +
@@ -651,7 +822,7 @@ function makeEnhancedTable(tableId, config = {}) {
         '<p><strong>Recognized Reviews:</strong> ' + item.metric3 + '</p>';
     } else {
       detailContent = 
-        '<h3 style="margin: 0 0 1rem 0; color: var(--primary-color);">👤 Reviewer Details</h3>' +
+        '<h3 style="margin: 0 0 1rem 0; color: var(--primary-ink);">👤 Reviewer Details</h3>' +
         '<p><strong>Name:</strong> ' + item.name + '</p>' +
         '<p><strong>Institution:</strong> ' + item.institution + '</p>' +
         '<p><strong>Rank:</strong> #' + item.rank + '</p>' +

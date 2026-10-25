@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Repeat Offenders: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
+{% block title %}Repeat Offenders: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
 
-{% block description %}The repeat offenders of the {{ cycle_name.replace('_', '-') }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
+{% block description %}The repeat offenders of the {{ cycle_name }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
 
-{% block keywords %}top reviewers, ACL Rolling Review, {{ cycle_name.replace('_', '-') }}, rankings, peer review excellence, academic reviewers, NLP reviewers, computational linguistics{% endblock %}
+{% block keywords %}top reviewers, ACL Rolling Review, {{ cycle_name }}, rankings, peer review excellence, academic reviewers, NLP reviewers, computational linguistics{% endblock %}
 
-{% block og_title %}Repeat Offenders: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
-{% block og_description %}The repeat offenders of the {{ cycle_name.replace('_', '-') }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
+{% block og_title %}Repeat Offenders: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
+{% block og_description %}The repeat offenders of the {{ cycle_name }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
 {% block og_type %}website{% endblock %}
 
-{% block twitter_title %}Repeat Offenders: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
-{% block twitter_description %}The repeat offenders of the {{ cycle_name.replace('_', '-') }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
+{% block twitter_title %}Repeat Offenders: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}The repeat offenders of the {{ cycle_name }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
 
 {% block schema_type %}CollectionPage{% endblock %}
-{% block schema_name %}Repeat Offenders: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
-{% block schema_description %}The repeat offenders of the {{ cycle_name.replace('_', '-') }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
+{% block schema_name %}Repeat Offenders: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
+{% block schema_description %}The repeat offenders of the {{ cycle_name }} cycle. Reviewers who kept writing helpful reviews when it mattered most.{% endblock %}
 {% block schema_additional %},
     "mainEntity": {
       "@type": "ItemList",
-      "name": "Top ACL Rolling Review Reviewers - {{ cycle_name.replace('_', '-') }}",
-      "description": "Ranked list of outstanding peer reviewers in {{ cycle_name.replace('_', '-') }} cycle"
+      "name": "Top ACL Rolling Review Reviewers - {{ cycle_name }}",
+      "description": "Ranked list of outstanding peer reviewers in {{ cycle_name }} cycle"
     }{% endblock %}
 
 {% block content %}
@@ -32,7 +32,7 @@
     <h3 style="margin: 0; font-size: 1.125rem; color: var(--text-primary);">Cycles:</h3>
     <a href="/reviewers/" class="cycle-link">All Cycles</a>
     {% for cycle in cycles %}
-    <a href="/reviewers/{{ cycle }}/" class="cycle-link {% if cycle_id == cycle %}cycle-current{% endif %}">{{ cycle.replace("_", "-") }}</a>
+    <a href="/reviewers/{{ cycle }}/" class="cycle-link {% if cycle_id == cycle %}cycle-current{% endif %}">{{ cycle|cycle_label }}</a>
     {% endfor %}
   </div>
 </div>
@@ -72,8 +72,8 @@
   </div>
 </div>
 
-<script src="/assets/js/table-utils.js"></script>
-<script src="/assets/js/reviewers-common.js"></script>
+<script src="/assets/js/table-utils.js?v={{ asset_version }}"></script>
+<script src="/assets/js/reviewers-common.js?v={{ asset_version }}"></script>
 <script>
 const cycle = '{{ cycle_id }}';
 

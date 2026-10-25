@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}By Affiliation: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
+{% block title %}By Affiliation: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
 
-{% block description %}Good reviewing isn't random — the {{ cycle_name.replace('_', '-') }} cycle proved it. Institutions ranked by great review count.{% endblock %}
+{% block description %}Good reviewing isn't random — the {{ cycle_name }} cycle proved it. Institutions ranked by great review count.{% endblock %}
 
-{% block keywords %}top institutions, ACL Rolling Review, {{ cycle_name.replace('_', '-') }}, academic institutions, peer review excellence, institutional rankings, university reviewers{% endblock %}
+{% block keywords %}top institutions, ACL Rolling Review, {{ cycle_name }}, academic institutions, peer review excellence, institutional rankings, university reviewers{% endblock %}
 
-{% block og_title %}By Affiliation: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
-{% block og_description %}Good reviewing isn't random — the {{ cycle_name.replace('_', '-') }} cycle proved it. Institutions ranked by great review count.{% endblock %}
+{% block og_title %}By Affiliation: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
+{% block og_description %}Good reviewing isn't random — the {{ cycle_name }} cycle proved it. Institutions ranked by great review count.{% endblock %}
 {% block og_type %}website{% endblock %}
 
-{% block twitter_title %}By Affiliation: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
-{% block twitter_description %}Good reviewing isn't random — the {{ cycle_name.replace('_', '-') }} cycle proved it. Institutions ranked by great review count.{% endblock %}
+{% block twitter_title %}By Affiliation: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
+{% block twitter_description %}Good reviewing isn't random — the {{ cycle_name }} cycle proved it. Institutions ranked by great review count.{% endblock %}
 
 {% block schema_type %}CollectionPage{% endblock %}
-{% block schema_name %}By Affiliation: {{ cycle_name.replace('_', '-') }} - ARR Great Reviewers{% endblock %}
-{% block schema_description %}Good reviewing isn't random — the {{ cycle_name.replace('_', '-') }} cycle proved it. Institutions ranked by great review count.{% endblock %}
+{% block schema_name %}By Affiliation: {{ cycle_name }} - ARR Great Reviewers{% endblock %}
+{% block schema_description %}Good reviewing isn't random — the {{ cycle_name }} cycle proved it. Institutions ranked by great review count.{% endblock %}
 {% block schema_additional %},
     "mainEntity": {
       "@type": "ItemList",
-      "name": "Top ACL Rolling Review Institutions - {{ cycle_name.replace('_', '-') }}",
-      "description": "Ranked list of academic institutions with outstanding peer reviewers in {{ cycle_name.replace('_', '-') }} cycle"
+      "name": "Top ACL Rolling Review Institutions - {{ cycle_name }}",
+      "description": "Ranked list of academic institutions with outstanding peer reviewers in {{ cycle_name }} cycle"
     }{% endblock %}
 
 {% block content %}
@@ -31,7 +31,7 @@
     <h3 style="margin: 0; font-size: 1.125rem; color: var(--text-primary);">Cycles:</h3>
     <a href="/institutions/" class="cycle-link">All Cycles</a>
     {% for cycle in cycles %}
-    <a href="/institutions/{{ cycle }}/" class="cycle-link {% if cycle_id == cycle %}cycle-current{% endif %}">{{ cycle.replace("_", "-") }}</a>
+    <a href="/institutions/{{ cycle }}/" class="cycle-link {% if cycle_id == cycle %}cycle-current{% endif %}">{{ cycle|cycle_label }}</a>
     {% endfor %}
   </div>
 </div>
@@ -94,8 +94,8 @@
   </div>
 </div>
 
-<script src="/assets/js/table-utils.js"></script>
-<script src="/assets/js/institutions-common.js"></script>
+<script src="/assets/js/table-utils.js?v={{ asset_version }}"></script>
+<script src="/assets/js/institutions-common.js?v={{ asset_version }}"></script>
 <script>
 const cycle = '{{ cycle_id }}';
 

@@ -24,6 +24,7 @@ Makefile integration:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import multiprocessing as mp
 import shutil
@@ -36,10 +37,23 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from src.reviewer_utils import format_cycle
+
 TEMPLATES = Path("templates")
 SITE = Path("site")
 SITE.mkdir(parents=True, exist_ok=True)
 BASE_URL = "https://arrgreatreviewers.org"
+
+
+def _asset_version() -> str:
+    """Short content hash of the CSS/JS, appended as ?v= so browsers drop stale copies."""
+    digest = hashlib.sha256()
+    for path in sorted(Path("static").glob("*/*.[cj]s")):
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+ASSET_VERSION = _asset_version()
 
 
 def render(template: str, context: dict, out: Path) -> None:
@@ -47,6 +61,8 @@ def render(template: str, context: dict, out: Path) -> None:
         loader=FileSystemLoader(str(TEMPLATES)),
         autoescape=select_autoescape(["html", "xml"]),
     )
+    env.filters["cycle_label"] = format_cycle
+    env.globals["asset_version"] = ASSET_VERSION
     tmpl = env.get_template(template)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(tmpl.render(**context), encoding="utf-8")
@@ -63,6 +79,8 @@ def render_template_parallel(task_data: Tuple[str, Dict[str, Any], Path]) -> boo
             autoescape=select_autoescape(["html", "xml"]),
             cache_size=500,
         )
+        env.filters["cycle_label"] = format_cycle
+        env.globals["asset_version"] = ASSET_VERSION
 
         template = env.get_template(template_name)
         content = template.render(**context)
@@ -309,7 +327,7 @@ def build_site(
 
     # Generate cycle-specific pages
     for cycle in cycles:
-        cycle_name = cycle.replace("_", "-")
+        cycle_name = format_cycle(cycle)
         cycle_context = {
             **common,
             "cycle_id": cycle,

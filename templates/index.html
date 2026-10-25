@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block body_class %}page-home{% endblock %}
+
 {% block title %}ARR Great Reviewers - They Actually Did Read the Paper{% endblock %}
 
 {% block description %}They actually did read the paper. ARR Area Chairs flagged these reviews as helpful, thorough, and worth recognizing. This is their hall of fame.{% endblock %}
@@ -112,5 +114,5 @@
 {% endblock %}
 
 {% block page_scripts %}
-<script src="/assets/js/index.js"></script>
+<script src="/assets/js/index.js?v={{ asset_version }}"></script>
 {% endblock %}

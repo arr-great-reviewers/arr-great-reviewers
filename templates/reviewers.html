@@ -32,7 +32,7 @@
     <h3 style="margin: 0; font-size: 1.125rem; color: var(--text-primary);">Cycles:</h3>
     <span class="cycle-current">All Cycles</span>
     {% for cycle in cycles %}
-    <a href="/reviewers/{{ cycle }}/" class="cycle-link">{{ cycle.replace("_", "-") }}</a>
+    <a href="/reviewers/{{ cycle }}/" class="cycle-link">{{ cycle|cycle_label }}</a>
     {% endfor %}
   </div>
 </div>
@@ -73,8 +73,8 @@
   </div>
 </div>
 
-<script src="/assets/js/table-utils.js"></script>
-<script src="/assets/js/reviewers-common.js"></script>
+<script src="/assets/js/table-utils.js?v={{ asset_version }}"></script>
+<script src="/assets/js/reviewers-common.js?v={{ asset_version }}"></script>
 <script>
 // Initialize the reviewer page manager for all-cycles data
 document.addEventListener('DOMContentLoaded', () => {

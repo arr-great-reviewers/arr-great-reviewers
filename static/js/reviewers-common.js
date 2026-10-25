@@ -155,72 +155,23 @@ class ReviewerPageManager {
    */
   createRecognitionChart(reviewerData, chartElementId) {
     const topData = reviewerData.slice(0, this.config.chartTopCount);
-    const names = topData.map(d => d.name || 'Anonymous');
-    const values = topData.map(d => d.recognized || 0);
-    
-    const trace = {
-      x: names,
-      y: values,
-      type: 'bar',
-      marker: {
-        color: values.map((v, i) => {
-          if (i === 0) return '#fbbf24';  // Gold
-          if (i === 1) return '#e5e7eb';  // Silver
-          if (i === 2) return '#c9975e';  // Bronze
-          return '#1e3a5f';               // Navy
-        }),
-        line: {
-          color: values.map((v, i) => {
-            if (i === 0) return '#b8860b';
-            if (i === 1) return '#9ca3af';
-            if (i === 2) return '#8b5a2b';
-            return '#0f2744';
-          }),
-          width: 1
-        }
-      },
-      text: values.map(v => v.toString()),
-      textposition: 'inside',
-      textfont: { color: 'white', size: 12 },
-      hovertemplate: '<b>%{x}</b><br>Recognized Reviews: %{y}<extra></extra>'
-    };
-    
-    const layout = {
-      xaxis: {
-        title: 'Reviewer',
-        tickangle: -45
-      },
-      yaxis: {
-        title: 'Number of Recognized Reviews'
-      },
-      margin: { l: 60, r: 30, t: 30, b: 120 },
-      paper_bgcolor: 'transparent',
-      plot_bgcolor: 'transparent',
-      font: {
-        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        size: 12,
-        color: '#64748b'
-      },
-      showlegend: false
-    };
-    
-    const config = {
-      responsive: true,
-      displayModeBar: false
-    };
-    
-    Plotly.newPlot(chartElementId, [trace], layout, config);
-
-    // Add click handler for navigation
-    const chartElement = document.getElementById(chartElementId);
-    chartElement.on('plotly_click', (data) => {
-      const pointIndex = data.points[0].pointIndex;
-      const reviewer = topData[pointIndex];
-      const url = this.getReviewerUrl(reviewer.name || '', reviewer.institution || '');
-      if (url) {
-        window.location.href = url;
-      }
+    renderRankedBarChart(chartElementId, {
+      items: topData.map(d => ({
+        label: d.name || 'Anonymous',
+        value: d.recognized || 0,
+        text: String(d.recognized || 0)
+      })),
+      valueTitle: 'Great reviews',
+      hovertemplate: '<b>%{customdata[0]}</b><br>Great reviews: %{x}<extra></extra>',
+      onClick: index => this.openReviewer(topData[index])
     });
+  }
+
+  openReviewer(reviewer) {
+    const url = this.getReviewerUrl(reviewer.name || '', reviewer.institution || '');
+    if (url) {
+      window.location.href = url;
+    }
   }
 
   /**
@@ -252,60 +203,17 @@ class ReviewerPageManager {
     })).sort((a, b) => b.percentage - a.percentage);
     
     const topData = dataWithPercentage.slice(0, this.config.chartTopCount);
-    const names = topData.map(d => d.name || 'Anonymous');
-    const percentages = topData.map(d => (d.percentage || 0).toFixed(1));
-    
-    const trace = {
-      x: names,
-      y: percentages,
-      type: 'bar',
-      marker: {
-        color: percentages.map((v, i) => `rgba(30, 58, 95, ${0.9 - (i * 0.03)})`),
-        line: { color: '#0f2744', width: 1 }
-      },
-      text: topData.map((d, i) => `${percentages[i]}% (${d.recognized || 0})`),
-      textposition: 'inside',
-      textfont: { color: 'white', size: 11 },
-      hovertemplate: '<b>%{x}</b><br>Recognition Rate: %{y}%<br>Great Reviews: %{customdata[0]}<br>Total Reviews: %{customdata[1]}<extra></extra>',
-      customdata: topData.map(d => [d.recognized || 0, d.reviewed || 0])
-    };
-    
-    const layout = {
-      xaxis: {
-        title: 'Reviewer',
-        tickangle: -45
-      },
-      yaxis: {
-        title: 'Recognition Rate (%)',
-        range: [0, 100]
-      },
-      margin: { l: 60, r: 30, t: 30, b: 120 },
-      paper_bgcolor: 'transparent',
-      plot_bgcolor: 'transparent',
-      font: {
-        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        size: 12,
-        color: '#64748b'
-      },
-      showlegend: false
-    };
-    
-    const config = {
-      responsive: true,
-      displayModeBar: false
-    };
-    
-    Plotly.newPlot(chartElementId, [trace], layout, config);
-
-    // Add click handler for navigation
-    const chartElement = document.getElementById(chartElementId);
-    chartElement.on('plotly_click', (data) => {
-      const pointIndex = data.points[0].pointIndex;
-      const reviewer = topData[pointIndex];
-      const url = this.getReviewerUrl(reviewer.name || '', reviewer.institution || '');
-      if (url) {
-        window.location.href = url;
-      }
+    renderRankedBarChart(chartElementId, {
+      items: topData.map(d => ({
+        label: d.name || 'Anonymous',
+        value: d.percentage,
+        text: `${d.percentage.toFixed(1)}% (${d.recognized || 0})`,
+        extra: [d.recognized || 0, d.reviewed || 0]
+      })),
+      valueTitle: 'Recognition rate (%)',
+      range: [0, 100],
+      hovertemplate: '<b>%{customdata[0]}</b><br>Recognition rate: %{x:.1f}%<br>Great reviews: %{customdata[1]}<br>Total reviews: %{customdata[2]}<extra></extra>',
+      onClick: index => this.openReviewer(topData[index])
     });
   }
 

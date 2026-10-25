@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import Dict
 
+from src.reviewer_utils import format_cycle
+
 
 def institution_name_to_url_safe_id(institution_name: str) -> str:
     """
@@ -289,6 +291,7 @@ def calculate_institution_achievements(
         all_cycles.update(institution["cycles"].keys())
 
     for cycle in all_cycles:
+        label = format_cycle(cycle)
         # Get institutions active in this cycle
         cycle_institutions = []
         for institution in institution_db.values():
@@ -315,8 +318,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_1_{cycle}",
-                        "title": f"Top 1 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 1 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -325,8 +328,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_2_{cycle}",
-                        "title": f"Top 2 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 2 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -335,8 +338,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_3_{cycle}",
-                        "title": f"Top 3 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 3 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -345,8 +348,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_5_{cycle}",
-                        "title": f"Top 5 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 5 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -355,8 +358,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_10_{cycle}",
-                        "title": f"Top 10 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 10 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -365,8 +368,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_20_{cycle}",
-                        "title": f"Top 20 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 20 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -375,8 +378,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_50_{cycle}",
-                        "title": f"Top 50 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 50 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -385,8 +388,8 @@ def calculate_institution_achievements(
                 institution_db[url_safe_id]["achievements"].append(
                     {
                         "type": f"cycle_top_100_{cycle}",
-                        "title": f"Top 100 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 100 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }

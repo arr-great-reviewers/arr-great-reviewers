@@ -6,6 +6,20 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
 
+_MONTHS = (
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)
+
+
+def format_cycle(cycle: str) -> str:
+    """Human-readable ARR cycle label: '2024_12' or '2024-12' -> 'Dec 2024'."""
+    year, _, month = cycle.replace("-", "_").partition("_")
+    if not (year.isdigit() and month.isdigit() and 1 <= int(month) <= 12):
+        return cycle
+    return f"{_MONTHS[int(month) - 1]} {year}"
+
+
 
 def get_reviewer_unique_id(
     name: str, institution: str, openreview_id: Optional[str] = None
@@ -333,6 +347,7 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
 
     for cycle_file in sorted(data_dir.glob("*.json")):
         cycle = cycle_file.stem
+        label = format_cycle(cycle)
 
         # Load raw cycle data (same source as frontend)
         with cycle_file.open("r", encoding="utf-8") as f:
@@ -357,8 +372,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_1_{cycle}",
-                        "title": f"Top 1 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 1 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -367,8 +382,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_2_{cycle}",
-                        "title": f"Top 2 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 2 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -377,8 +392,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_3_{cycle}",
-                        "title": f"Top 3 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 3 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -387,8 +402,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_5_{cycle}",
-                        "title": f"Top 5 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 5 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -397,8 +412,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_10_{cycle}",
-                        "title": f"Top 10 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 10 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -407,8 +422,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_20_{cycle}",
-                        "title": f"Top 20 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 20 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -417,8 +432,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_50_{cycle}",
-                        "title": f"Top 50 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 50 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }
@@ -427,8 +442,8 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
                 reviewer_db[unique_id]["achievements"].append(
                     {
                         "type": f"cycle_top_100_{cycle}",
-                        "title": f"Top 100 in {cycle}",
-                        "description": f"Ranked #{rank} in {cycle} cycle",
+                        "title": f"Top 100 in {label}",
+                        "description": f"Ranked #{rank} in {label}",
                         "rank": rank,
                         "cycle": cycle,
                     }

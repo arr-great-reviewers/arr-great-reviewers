@@ -3,6 +3,8 @@
 :root {
   /* Refined Academic Palette - Navy + Gold */
   --primary-color: #1e3a5f;
+  /* Text, links and outlines; equals --primary-color in light mode, lighter in dark mode */
+  --primary-ink: #1e3a5f;
   --secondary-color: #0f2744;
   --accent-color: #c9a227;
   --success-color: #2d6a4f;
@@ -19,6 +21,47 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --header-bg-start: #1e3a5f;
+  --header-bg-end: #0f2744;
+  /* Plotly charts read these through getComputedStyle (see ChartTheme in main.js) */
+  --chart-bar: #1e3a5f;
+  --chart-bar-text: #ffffff;
+  --medal-gold: #fbbf24;
+  --medal-silver: #e5e7eb;
+  --medal-bronze: #c9975e;
+  --medal-text: #1a1a1a;
+  --banner-bg-start: #faf8f5;
+  --banner-bg-end: #f5f0e8;
+  --banner-border: #e8e4dc;
+}
+
+/* Dark palette. <html data-theme> is set before first paint by the inline script in
+   base.html: the saved choice from the header toggle, else the system setting. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary-color: #2c5585;
+  --secondary-color: #1e3a5f;
+  --primary-ink: #a8c6ed;
+  --accent-color: #d9b54a;
+  --success-color: #4fae84;
+  --bg-primary: #121a24;
+  --bg-secondary: #0c131d;
+  --bg-tertiary: #1d2938;
+  --text-primary: #e8edf3;
+  --text-secondary: #aab6c5;
+  --text-tertiary: #8a96a6;
+  --border-color: #2a3747;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.55), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  --header-bg-start: #16304f;
+  --header-bg-end: #0b1a2e;
+  --chart-bar: #6f9bd1;
+  --chart-bar-text: #0c131d;
+  --banner-bg-start: #172231;
+  --banner-bg-end: #121a24;
+  --banner-border: #2a3747;
 }
 
 * {
@@ -40,7 +83,7 @@ body {
 
 /* Header Styles */
 header {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
   color: white;
   padding: 2rem 0;
   box-shadow: var(--shadow-lg);
@@ -208,7 +251,7 @@ main {
 }
 
 .cycle-link {
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: none;
   font-weight: 500;
   padding: 0.5rem 1rem;
@@ -297,7 +340,7 @@ main {
 .stat-card .value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   margin-bottom: 0.5rem;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -326,7 +369,7 @@ main {
 .stat-number {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -388,7 +431,7 @@ main {
 
 .table-search:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-ink);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -472,7 +515,7 @@ main {
 .data-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  border-color: var(--primary-color);
+  border-color: var(--primary-ink);
 }
 
 .data-card::before {
@@ -482,7 +525,7 @@ main {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  background: linear-gradient(90deg, var(--primary-ink), var(--accent-color));
 }
 
 .card-header {
@@ -633,13 +676,13 @@ table th.sortable::after {
 table th.sortable.sort-asc::after {
   content: '↑';
   opacity: 1;
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 table th.sortable.sort-desc::after {
   content: '↓';
   opacity: 1;
-  color: var(--primary-color);
+  color: var(--primary-ink);
 }
 
 table td {
@@ -654,7 +697,7 @@ table tr:hover {
 /* Links */
 .reviewer-link,
 .reviewer-link:visited {
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -673,13 +716,13 @@ table tr:hover {
 }
 
 .reviewer-link:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid var(--primary-ink);
   outline-offset: 2px;
 }
 
 .institution-link,
 .institution-link:visited {
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -698,7 +741,7 @@ table tr:hover {
 }
 
 .institution-link:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid var(--primary-ink);
   outline-offset: 2px;
 }
 
@@ -751,7 +794,7 @@ footer p {
 }
 
 footer a {
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: none;
   font-weight: 500;
 }
@@ -795,7 +838,7 @@ footer a:hover {
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  background: white;
+  background: var(--bg-primary);
   border-radius: 0.75rem;
   box-shadow: var(--shadow-xl);
   padding: 0.5rem;
@@ -827,7 +870,7 @@ footer a:hover {
 
 .nav-search-input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-ink);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -976,7 +1019,7 @@ footer a:hover {
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 0.75rem;
   font-size: 1rem;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-primary);
   color: var(--text-primary);
   transition: all 0.3s ease;
 }
@@ -988,7 +1031,7 @@ footer a:hover {
 .profile-search-input:focus {
   outline: none;
   border-color: white;
-  background: white;
+  background: var(--bg-primary);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
 }
@@ -1016,7 +1059,7 @@ footer a:hover {
 }
 
 .profile-search-results {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 0.75rem;
   box-shadow: var(--shadow-xl);
   max-height: 300px;
@@ -1140,7 +1183,7 @@ footer a:hover {
   width: 32px;
   height: 32px;
   border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border-top-color: var(--primary-ink);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1189,8 +1232,10 @@ footer a:hover {
   to { transform: rotate(360deg); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out;
+@media (prefers-reduced-motion: no-preference) {
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
 }
 
 /* Responsive Design */
@@ -1774,5 +1819,112 @@ footer a:hover {
 @media (min-width: 1024px) {
   .data-card {
     min-width: 250px;
+  }
+}
+
+/* Equal-width digits so numbers line up in stats and tables */
+table,
+.stat-number,
+.stat-value,
+.stat-card .value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact header on every page except the home page */
+body:not(.page-home) header p {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  body:not(.page-home) header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1rem max(1.5rem, calc((100% - 1400px) / 2 + 1.5rem));
+  }
+
+  body:not(.page-home) .logo-title-link {
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+  }
+
+  body:not(.page-home) .site-logo {
+    height: 44px;
+    padding: 2px;
+    border-radius: 8px;
+  }
+
+  body:not(.page-home) header h1 {
+    font-size: 1.5rem;
+  }
+
+  body:not(.page-home) nav {
+    justify-content: flex-end;
+  }
+
+  body:not(.page-home) nav a {
+    padding: 0.6rem 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  body:not(.page-home) header {
+    padding: 1rem 0;
+  }
+}
+
+/* Light/dark toggle in the header nav; shows the icon of the theme it switches to */
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  font: inherit;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.theme-toggle .icon-sun,
+:root[data-theme="dark"] .theme-toggle .icon-moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle .icon-sun {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .theme-toggle {
+    width: 100%;
+    order: 11;
+    margin: 0.25rem 0;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    min-height: unset;
+  }
+
+  .theme-toggle::after {
+    content: 'Dark mode';
+  }
+
+  :root[data-theme="dark"] .theme-toggle::after {
+    content: 'Light mode';
   }
 }

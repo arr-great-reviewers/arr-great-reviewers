@@ -110,33 +110,32 @@
     {% if reviewer.cycles %}
     <div class="cycles-section">
       <h2>Review Cycle Performance</h2>
-      <div class="cycles-grid">
-        {% for cycle_name, cycle_data in reviewer.cycles.items() %}
-        <div class="cycle-card">
-          <div class="cycle-header">
-            <h3>{{ cycle_name.replace('_', '-') }}</h3>
-            <a href="/reviewers/{{ cycle_name }}/" class="cycle-link">View Cycle</a>
-          </div>
-          <div class="cycle-stats">
-            <div class="cycle-stat">
-              <span class="stat-value">{{ cycle_data.recognized }}</span>
-              <span class="stat-label">Great Reviews</span>
-            </div>
-            <div class="cycle-stat">
-              <span class="stat-value">{{ cycle_data.reviewed }}</span>
-              <span class="stat-label">Total Reviews</span>
-            </div>
-            <div class="cycle-stat">
-              <span class="stat-value">{{ "%.1f"|format(cycle_data.percentage) }}%</span>
-              <span class="stat-label">Recognition Rate</span>
-            </div>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: {{ cycle_data.percentage }}%"></div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
+      <table class="cycle-history">
+        <thead>
+          <tr>
+            <th scope="col">Cycle</th>
+            <th scope="col" class="num">Great reviews</th>
+            <th scope="col" class="num">Reviews</th>
+            <th scope="col" class="rate-col">Recognition rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cycle_name, cycle_data in reviewer.cycles.items() %}
+          {% set rate = (cycle_data.recognized / cycle_data.reviewed * 100) if cycle_data.reviewed else 0 %}
+          <tr>
+            <th scope="row"><a href="/reviewers/{{ cycle_name }}/">{{ cycle_name|cycle_label }}</a></th>
+            <td class="num">{{ cycle_data.recognized }}</td>
+            <td class="num">{{ cycle_data.reviewed }}</td>
+            <td class="rate-col">
+              <div class="rate-wrap">
+                <span class="rate-value">{{ "%.1f"|format(rate) }}%</span>
+                <span class="rate-track" aria-hidden="true"><span class="rate-fill" style="width: {{ "%.1f"|format(rate) }}%"></span></span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
     {% endif %}
 
@@ -182,11 +181,11 @@
 }
 
 .openreview-link a {
-  color: var(--primary-color);
+  color: var(--primary-ink);
   text-decoration: none;
   font-weight: 500;
   padding: 0.5rem 1rem;
-  border: 2px solid var(--primary-color);
+  border: 2px solid var(--primary-ink);
   border-radius: 6px;
   transition: all 0.2s;
 }
@@ -214,7 +213,7 @@
 .stat-number {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--primary-ink);
   margin-bottom: 0.5rem;
 }
 
@@ -283,83 +282,77 @@
   color: var(--text-secondary);
 }
 
-.cycles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+.cycle-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
 }
 
-.cycle-card {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--border-color);
-  transition: box-shadow 0.2s;
+.cycle-history th,
+.cycle-history td {
+  height: 50px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
 }
 
-.cycle-card:hover {
-  box-shadow: var(--shadow-lg);
-}
-
-.cycle-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.cycle-header h3 {
-  font-size: 1.2rem;
-  color: var(--text-primary);
-}
-
-.cycle-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-size: 0.9rem;
+.cycle-history thead th {
+  height: auto;
+  padding-bottom: 0.5rem;
+  font-size: 0.85rem;
   font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
 }
 
-.cycle-link:hover {
+.cycle-history tbody th {
+  font-weight: 600;
+}
+
+.cycle-history tbody th a {
+  color: var(--primary-ink);
+  text-decoration: none;
+}
+
+.cycle-history tbody th a:hover {
   text-decoration: underline;
 }
 
-.cycle-stats {
+.cycle-history .num {
+  text-align: right;
+}
+
+.cycle-history tbody .num {
+  font-size: 1.05rem;
+}
+
+.cycle-history .rate-col {
+  width: 40%;
+}
+
+.cycle-history .rate-wrap {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 1rem;
+  align-items: center;
+  gap: 12px;
 }
 
-.cycle-stat {
-  text-align: center;
+.cycle-history .rate-value {
+  min-width: 3.5em;
+  text-align: right;
+}
+
+.cycle-history .rate-track {
   flex: 1;
-}
-
-.cycle-stat .stat-value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-}
-
-.cycle-stat .stat-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.progress-bar {
-  background: var(--border-color);
-  border-radius: 4px;
   height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
   overflow: hidden;
 }
 
-.progress-fill {
-  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+.cycle-history .rate-fill {
+  display: block;
   height: 100%;
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--primary-ink), var(--accent-color));
 }
 
 .profile-navigation {
@@ -401,13 +394,29 @@
     grid-template-columns: 1fr;
   }
   
-  .cycles-grid {
-    grid-template-columns: 1fr;
+  .achievements-section,
+  .cycles-section {
+    padding: 1.25rem;
   }
-  
-  .cycle-stats {
-    flex-direction: column;
-    gap: 0.5rem;
+
+  /* Override the site-wide mobile table rules (min-width: 600px, nowrap) */
+  .cycle-history {
+    min-width: 0;
+    font-size: 0.9rem;
+  }
+
+  .cycle-history th,
+  .cycle-history td {
+    padding: 0 6px;
+    white-space: normal;
+  }
+
+  .cycle-history .rate-col {
+    width: auto;
+  }
+
+  .cycle-history .rate-track {
+    display: none;
   }
   
   .profile-navigation {

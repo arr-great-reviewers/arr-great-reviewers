@@ -141,78 +141,37 @@ function loadIndexData() {
   fetch('/data/metrics/monthly_snapshots.json')
     .then(r => r.json())
     .then(data => {
-      const iterations = data.map(d => d.iteration);
+      const iterations = data.map(d => formatCycle(d.iteration));
       const reviewed = data.map(d => d.reviewed);
       const recognized = data.map(d => d.recognized);
-      
-      const trace1 = {
-        x: iterations,
-        y: reviewed,
-        name: 'Total Reviews',
-        type: 'bar',
-        marker: {
-          color: '#1e3a5f',
-          line: {
-            color: '#0f2744',
-            width: 1
-          }
-        }
-      };
-      
-      const trace2 = {
-        x: iterations,
-        y: recognized,
-        name: 'Recognized Reviews',
-        type: 'bar',
-        marker: {
-          color: '#2d6a4f',
-          line: {
-            color: '#1b4332',
-            width: 1
-          }
-        }
-      };
-      
-      const layout = {
-        barmode: 'grouped',
-        xaxis: {
-          title: 'Review Cycle',
-          tickangle: -45,
-          automargin: true
-        },
-        yaxis: {
-          title: 'Number of Reviews',
-          automargin: true
-        },
-        margin: {
-          l: 60,
-          r: 30,
-          t: 30,
-          b: 80
-        },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        font: {
-          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          size: window.innerWidth < 768 ? 10 : 12,
-          color: '#64748b'
-        },
-        showlegend: true,
-        legend: {
-          x: window.innerWidth < 768 ? 0 : 0,
-          y: window.innerWidth < 768 ? -0.2 : 1,
-          bgcolor: 'transparent',
-          orientation: window.innerWidth < 768 ? 'h' : 'v'
-        },
-        hovermode: 'x unified'
-      };
-      
-      const config = {
-        responsive: true,
-        displayModeBar: false
-      };
-      
-      Plotly.newPlot('snapshot', [trace1, trace2], layout, config);
+
+      ChartTheme.bind(() => {
+        const colors = ChartTheme.colors();
+        const recognizedColor = getComputedStyle(document.documentElement)
+          .getPropertyValue('--success-color').trim();
+        const traces = [
+          { x: iterations, y: reviewed, name: 'Total Reviews', type: 'bar', marker: { color: colors.bar } },
+          { x: iterations, y: recognized, name: 'Recognized Reviews', type: 'bar', marker: { color: recognizedColor } }
+        ];
+        const isNarrow = window.innerWidth < 768;
+        const layout = {
+          ...ChartTheme.baseLayout(colors),
+          barmode: 'group',
+          xaxis: { title: 'Review Cycle', automargin: true },
+          yaxis: { title: 'Number of Reviews', automargin: true, gridcolor: colors.grid, zerolinecolor: colors.grid },
+          margin: { l: 60, r: 30, t: 30, b: 80 },
+          font: { ...ChartTheme.baseLayout(colors).font, size: isNarrow ? 10 : 12 },
+          showlegend: true,
+          legend: {
+            x: 0,
+            y: isNarrow ? -0.2 : 1,
+            bgcolor: 'transparent',
+            orientation: isNarrow ? 'h' : 'v'
+          },
+          hovermode: 'x unified'
+        };
+        Plotly.react('snapshot', traces, layout, { responsive: true, displayModeBar: false });
+      });
       
       // Update stats
       if (data.length > 0) {
