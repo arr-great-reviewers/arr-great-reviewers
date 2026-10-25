@@ -55,7 +55,8 @@ uv run python -m src.map_openreview_profiles reprocess-top --top-n-per-cycle 100
 
 Note: `map-openreview-reprocess-top` uses existing `data/metrics/reviewers_*.json` files. If those files are stale or missing, run `make metrics` first.
 
-You can pass authenticated OpenReview cookies via environment variables (useful for gated profiles):
+Profile lookup uses the OpenReview `profiles/search` API, which requires login. Provide
+authenticated OpenReview cookies via environment variables:
 
 ```bash
 export OPENREVIEW_ACCESS_TOKEN="..."
@@ -63,18 +64,20 @@ export OPENREVIEW_REFRESH_TOKEN="..."
 make map-openreview-reprocess-top
 ```
 
-Alternatively, provide a cookie JSON dump from a browser session:
+Alternatively, provide a cookie JSON dump from a browser session (or drop it at
+`./openreview_cookies.json`):
 
 ```bash
 export OPENREVIEW_COOKIES_FILE="/path/to/openreview_cookies.json"
 make map-openreview-reprocess-top
 ```
 
-When cookies are provided, the mapper will also use the OpenReview API as a fallback
-for profiles whose HTML pages do not expose history data.
-
-Name lookup is robust to punctuation differences (e.g., dotted initials or apostrophes),
-and uses a first/last-name API search fallback when needed.
+Each reviewer costs one search request (all profiles with that full name, including
+their institution history); a profile matches when its history matches the reviewer's
+institution. OpenReview rate-limits this endpoint (roughly 100–130 requests/hour), so
+the mapper backs off on HTTP 429 and honours `Retry-After`; large batches take hours.
+Lookups that still fail are skipped rather than recorded as "no match", so a later
+`incremental` run picks them up.
 
 If automatic lookup finds multiple candidate profiles, the candidates remain in
 `multiple_matches` as evidence but no profile ID is used until a manual mapping resolves

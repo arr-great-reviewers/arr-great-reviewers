@@ -13,7 +13,6 @@ dependencies = [
   "rich",
   "python-slugify",
   "typer",
-  "beautifulsoup4",
 ]
 
 [tool.uv]

@@ -2,15 +2,14 @@
 
 import json
 import os
-import re
 import tomllib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import requests
 import typer
-from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -22,6 +21,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.table import Table
+from urllib3.util.retry import Retry
 
 app = typer.Typer(
     help="Map reviewer names to OpenReview profiles. Use 'incremental' to process only new reviewers."
@@ -29,98 +29,6 @@ app = typer.Typer(
 console = Console()
 _session: Optional[requests.Session] = None
 _access_token: Optional[str] = None
-
-
-def normalize_name_variant(
-    name: str, keep_dots: bool = False, keep_apostrophes: bool = False
-) -> str:
-    """Normalize name to OpenReview profile format with optional punctuation."""
-    allowed = r"\w\s"
-    if keep_dots:
-        allowed += r"\."
-    if keep_apostrophes:
-        allowed += "'"
-    # Keep hyphen literal in class (not as a range)
-    allowed += "-"
-    name = re.sub(rf"[^{allowed}]", "", name)
-    name = re.sub(r"\s+", "_", name.strip())
-    return name
-
-
-def generate_profile_candidates(name: str, max_profiles: int) -> List[str]:
-    """Generate candidate OpenReview profile IDs for a name."""
-    bases = []
-    seen = set()
-
-    for keep_dots in (True, False):
-        for keep_apostrophes in (True, False):
-            normalized = normalize_name_variant(
-                name, keep_dots=keep_dots, keep_apostrophes=keep_apostrophes
-            )
-            if normalized and normalized not in seen:
-                seen.add(normalized)
-                bases.append(normalized)
-
-    candidates = []
-    for base in bases:
-        for i in range(1, max_profiles + 1):
-            candidates.append(f"~{base}{i}")
-
-    return candidates
-
-
-def fetch_openreview_profile(profile_id: str) -> Optional[Dict]:
-    """Fetch OpenReview profile HTML page."""
-    url = f"https://openreview.net/profile?id={profile_id}"
-
-    try:
-        session = get_requests_session()
-        response = session.get(url, timeout=15)
-        if response.status_code == 200:
-            content = response.text
-            actual_profile_id = profile_id
-            redirected = False
-
-            # Check for shouldRedirect and preferredId in the page content
-            redirect_match = re.search(
-                r'\\"shouldRedirect\\":\s*true.*?\\"preferredId\\":\s*\\"([^"]+)\\"',
-                content,
-            )
-            if redirect_match:
-                actual_profile_id = redirect_match.group(1)
-                redirected = True
-
-            return {
-                "profile_id": actual_profile_id,
-                "original_id": profile_id,
-                "exists": True,
-                "content": content,
-                "redirected": redirected,
-            }
-        return None
-    except requests.RequestException:
-        return None
-
-
-def fetch_profile_from_api(profile_id: str) -> Optional[Dict]:
-    """Fetch profile data from the OpenReview API (requires access token)."""
-    access_token = get_access_token_from_env()
-    if not access_token:
-        return None
-
-    session = get_requests_session()
-    url = f"https://api2.openreview.net/profiles?id={profile_id}"
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    try:
-        response = session.get(url, headers=headers, timeout=15)
-        if response.status_code != 200:
-            return None
-        data = response.json()
-        profiles = data.get("profiles", [])
-        return profiles[0] if profiles else None
-    except (requests.RequestException, ValueError):
-        return None
 
 
 def _read_cookies_raw() -> Optional[str]:
@@ -231,6 +139,19 @@ def get_access_token_from_env() -> Optional[str]:
     return None
 
 
+# OpenReview's rate-limit window is one hour; never sleep longer than that on a
+# single Retry-After, so a bogus or stale header cannot stall a run for hours.
+RETRY_AFTER_CAP_SECONDS = 3600
+
+
+class _CappedRetry(Retry):
+    def get_retry_after(self, response):
+        retry_after = super().get_retry_after(response)
+        if retry_after is None:
+            return None
+        return min(retry_after, RETRY_AFTER_CAP_SECONDS)
+
+
 def get_requests_session() -> requests.Session:
     """Return a configured session with optional auth cookies."""
     global _session
@@ -238,6 +159,16 @@ def get_requests_session() -> requests.Session:
         return _session
 
     session = requests.Session()
+    # OpenReview answers bursts with 429; without retries those would be recorded
+    # as "no match". Back off (honouring Retry-After) instead.
+    retry = _CappedRetry(
+        total=10,
+        status_forcelist=(429, 502, 503, 504),
+        backoff_factor=2,
+        backoff_max=60,
+        respect_retry_after_header=True,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry, pool_maxsize=32))
     for cookie in load_auth_cookies_from_env():
         session.cookies.set(
             cookie["name"],
@@ -266,25 +197,6 @@ def extract_institution_history_from_api(profile: Dict) -> List[str]:
         ]
         history.append(" ".join(p for p in parts if p))
     return history
-
-
-def extract_institution_from_profile(profile_content: str) -> List[str]:
-    """Extract text content from history section of OpenReview profile HTML"""
-    # Parse the HTML content
-    soup = BeautifulSoup(profile_content, "html.parser")
-
-    # Find all sections with class="history"
-    history_sections = soup.find_all("section", class_="history")
-
-    # Extract text from each history section
-    history_texts = []
-    for section in history_sections:
-        # Get all text from the history section, preserving some structure
-        section_text = section.get_text(separator=" ", strip=True)
-        if section_text:
-            history_texts.append(section_text)
-
-    return history_texts
 
 
 def institution_matches(
@@ -326,102 +238,46 @@ def institution_matches(
     return False
 
 
-def search_profiles_by_name(first: str, last: str) -> List[Dict]:
-    """Search profiles via API by first/last name (requires access token)."""
+def search_profiles_by_fullname(name: str) -> Optional[List[Dict]]:
+    """Return every OpenReview profile matching `name`, or None if the lookup failed."""
     access_token = get_access_token_from_env()
     if not access_token:
-        return []
+        return None
 
     session = get_requests_session()
-    url = "https://api2.openreview.net/profiles"
-    headers = {"Authorization": f"Bearer {access_token}"}
-
     try:
         response = session.get(
-            url, headers=headers, params={"first": first, "last": last}, timeout=15
+            "https://api2.openreview.net/profiles/search",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"fullname": name, "limit": 1000},
+            timeout=30,
         )
-        if response.status_code != 200:
-            return []
-        data = response.json()
-        return data.get("profiles", []) or []
-    except (requests.RequestException, ValueError):
-        return []
+        response.raise_for_status()
+        return response.json().get("profiles", []) or []
+    except (requests.RequestException, ValueError) as e:
+        console.print(f"[red]Profile search failed for {name}: {e}[/red]")
+        return None
 
 
-def find_matching_profiles(
-    name: str, institution: str, max_profiles: int = 30
-) -> List[str]:
-    """Find matching OpenReview profiles for a given name and institution.
+def find_matching_profiles(name: str, institution: str) -> Optional[List[str]]:
+    """Find OpenReview profile IDs whose name and institution history match.
 
-    Returns a list of matching profile IDs (deduplicated).
+    Returns None when the lookup itself failed, so callers do not record a
+    transient API error as "no match".
     """
-    # Generate profile candidates
-    profile_candidates = generate_profile_candidates(name, max_profiles)
-
-    matching_profiles = set()  # Use set to avoid duplicates
-
-    # Check each profile candidate
-    for profile_id in profile_candidates:
-        profile_data = fetch_openreview_profile(profile_id)
-
-        if profile_data:
-            profile_institutions = extract_institution_from_profile(
-                profile_data["content"]
+    profiles = search_profiles_by_fullname(name)
+    if profiles is None:
+        return None
+    return sorted(
+        {
+            profile["id"]
+            for profile in profiles
+            if profile.get("id")
+            and institution_matches(
+                institution, extract_institution_history_from_api(profile)
             )
-
-            match = institution_matches(institution, profile_institutions)
-
-            # Fallback to API if HTML doesn't include history or doesn't match
-            if not match:
-                api_profile = fetch_profile_from_api(profile_data["profile_id"])
-                if api_profile:
-                    api_history = extract_institution_history_from_api(api_profile)
-                    match = institution_matches(institution, api_history)
-
-            if match:
-                # Use the actual profile ID (in case of redirect)
-                actual_id = profile_data["profile_id"]
-
-                # Only add if not already found (deduplication)
-                if actual_id not in matching_profiles:
-                    matching_profiles.add(actual_id)
-
-                    if profile_data.get("redirected"):
-                        console.print(
-                            f"[green]✓[/green] Found match: {profile_id} → {actual_id} for {name}"
-                        )
-                    else:
-                        console.print(
-                            f"[green]✓[/green] Found match: {actual_id} for {name}"
-                        )
-                else:
-                    # Profile already found through different redirect
-                    if profile_data.get("redirected"):
-                        console.print(
-                            f"[blue]i[/blue] Duplicate: {profile_id} → {actual_id} for {name} (already found)"
-                        )
-
-    # Fallback: API name search when punctuation/middle initials differ
-    if not matching_profiles:
-        tokens = [t for t in name.replace(",", " ").split() if t]
-        if tokens:
-            first = tokens[0]
-            last = tokens[-1]
-            api_profiles = search_profiles_by_name(first, last)
-            for profile in api_profiles:
-                profile_id = profile.get("id")
-                if not profile_id:
-                    continue
-                api_history = extract_institution_history_from_api(profile)
-                if institution_matches(institution, api_history):
-                    if profile_id not in matching_profiles:
-                        matching_profiles.add(profile_id)
-                        console.print(
-                            f"[green]✓[/green] Found match: {profile_id} for {name}"
-                        )
-
-    # Convert back to list and return
-    return list(matching_profiles)
+        }
+    )
 
 
 def load_reviewer_data(data_dir: Path) -> List[Dict]:
@@ -491,7 +347,19 @@ def _refresh_mapping_metadata(results: Dict) -> None:
     )
 
 
-def _classify_reviewer(reviewer: Dict, max_profiles: int) -> Optional[Dict]:
+def _require_auth() -> None:
+    """Abort unless an OpenReview access token is configured (profile search needs one)."""
+    if get_access_token_from_env():
+        console.print("[green]Authenticated with OpenReview[/green]")
+        return
+    console.print(
+        "[red]No OpenReview auth token — profile search requires login. "
+        "Set OPENREVIEW_COOKIES_FILE or drop openreview_cookies.json at repo root.[/red]"
+    )
+    raise typer.Exit(1)
+
+
+def _classify_reviewer(reviewer: Dict) -> Optional[Dict]:
     """Find OpenReview matches for a single reviewer and classify the result."""
     name = reviewer.get("name", "")
     institution = reviewer.get("institution", "")
@@ -499,7 +367,9 @@ def _classify_reviewer(reviewer: Dict, max_profiles: int) -> Optional[Dict]:
     if not name or not institution:
         return None
 
-    matching_profiles = find_matching_profiles(name, institution, max_profiles)
+    matching_profiles = find_matching_profiles(name, institution)
+    if matching_profiles is None:
+        return None
 
     if len(matching_profiles) == 1:
         category = "single_matches"
@@ -519,9 +389,9 @@ def _classify_reviewer(reviewer: Dict, max_profiles: int) -> Optional[Dict]:
 
 def map_profiles(
     reviewers: List[Dict],
-    max_profiles: int = 30,
     output_file: Optional[Path] = None,
     workers: int = 8,
+    checkpoint: Optional[Callable[[Dict], None]] = None,
 ) -> Dict:
     """Map reviewer names to OpenReview profiles"""
 
@@ -541,13 +411,7 @@ def map_profiles(
     # Warm module-level caches before spawning workers to avoid benign races
     # on _session / _access_token from concurrent first-touch.
     get_requests_session()
-    if get_access_token_from_env():
-        console.print("[green]Authenticated with OpenReview[/green]")
-    else:
-        console.print(
-            "[yellow]No OpenReview auth token — private/redirected profiles will not resolve. "
-            "Set OPENREVIEW_COOKIES_FILE or drop openreview_cookies.json at repo root.[/yellow]"
-        )
+    _require_auth()
 
     def _desc() -> str:
         m = results["metadata"]
@@ -559,7 +423,7 @@ def map_profiles(
 
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool, _make_progress() as progress:
         futures = [
-            pool.submit(_classify_reviewer, reviewer, max_profiles)
+            pool.submit(_classify_reviewer, reviewer)
             for reviewer in reviewers
         ]
         task_id = progress.add_task(_desc(), total=len(futures))
@@ -598,6 +462,8 @@ def map_profiles(
                 )
 
             progress.update(task_id, advance=1, description=_desc())
+            if checkpoint:
+                checkpoint(results)
 
     _refresh_mapping_metadata(results)
 
@@ -608,6 +474,14 @@ def map_profiles(
         console.print(f"[green]Results saved to {output_file}[/green]")
 
     return results
+
+
+def save_results(results_file: Path, results: Dict) -> None:
+    """Atomically write mapping results, so an interrupted run never leaves a torn file."""
+    tmp_file = results_file.with_suffix(results_file.suffix + ".tmp")
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    tmp_file.replace(results_file)
 
 
 def load_existing_results(results_file: Path) -> Optional[Dict]:
@@ -656,9 +530,9 @@ def remove_key_from_results(results: Dict, key: str) -> None:
 
 def reprocess_no_matches(
     results: Dict,
-    max_profiles: int = 30,
     limit_keys: Optional[set] = None,
     workers: int = 8,
+    checkpoint: Optional[Callable[[Dict], None]] = None,
 ) -> Dict:
     """Reprocess entries from no_matches and move found matches to appropriate sections"""
     if not results.get("no_matches"):
@@ -681,18 +555,11 @@ def reprocess_no_matches(
 
     # Warm module-level caches before spawning workers.
     get_requests_session()
-    if get_access_token_from_env():
-        console.print("[green]Authenticated with OpenReview[/green]")
-    else:
-        console.print(
-            "[yellow]No OpenReview auth token — private/redirected profiles will not resolve.[/yellow]"
-        )
+    _require_auth()
 
     def _lookup(item):
         key, entry = item
-        profiles = find_matching_profiles(
-            entry["name"], entry["institution"], max_profiles
-        )
+        profiles = find_matching_profiles(entry["name"], entry["institution"])
         return key, entry, profiles
 
     run_counts = {"single": 0, "multiple": 0, "still_none": 0}
@@ -709,6 +576,9 @@ def reprocess_no_matches(
         task_id = progress.add_task(_desc(), total=len(futures))
         for future in as_completed(futures):
             key, entry, matching_profiles = future.result()
+            if matching_profiles is None:
+                progress.update(task_id, advance=1)
+                continue
             name = entry["name"]
             institution = entry["institution"]
 
@@ -744,6 +614,8 @@ def reprocess_no_matches(
                 )
 
             progress.update(task_id, advance=1, description=_desc())
+            if checkpoint:
+                checkpoint(results)
 
     console.print("\n" + "=" * 60 + "\n")
     if newly_found:
@@ -870,12 +742,6 @@ def reprocess(
         "-r",
         help="Path to existing results JSON file",
     ),
-    max_profiles: int = typer.Option(
-        30,
-        "--max-profiles",
-        "-m",
-        help="Maximum number of profile variants to try (1 to N)",
-    ),
     workers: int = typer.Option(
         8,
         "--workers",
@@ -905,7 +771,7 @@ def reprocess(
 
     # Reprocess no matches
     console.print("[blue]Reprocessing unmatched entries...[/blue]")
-    updated_results = reprocess_no_matches(results, max_profiles, workers=workers)
+    updated_results = reprocess_no_matches(results, workers=workers)
 
     # Save updated results back to file
     with open(results_file, "w", encoding="utf-8") as f:
@@ -941,12 +807,6 @@ def reprocess_top(
         "-r",
         help="Path to existing results JSON file",
     ),
-    max_profiles: int = typer.Option(
-        30,
-        "--max-profiles",
-        "-m",
-        help="Maximum number of profile variants to try (1 to N)",
-    ),
     workers: int = typer.Option(
         8,
         "--workers",
@@ -974,7 +834,7 @@ def reprocess_top(
         f"[blue]Reprocessing no-matches for {len(target_keys)} top reviewers...[/blue]"
     )
     updated_results = reprocess_no_matches(
-        results, max_profiles, limit_keys=target_keys, workers=workers
+        results, limit_keys=target_keys, workers=workers
     )
 
     with open(results_file, "w", encoding="utf-8") as f:
@@ -993,12 +853,6 @@ def reprocess_one(
         "--results-file",
         "-r",
         help="Path to existing results JSON file",
-    ),
-    max_profiles: int = typer.Option(
-        30,
-        "--max-profiles",
-        "-m",
-        help="Maximum number of profile variants to try (1 to N)",
     ),
     write: bool = typer.Option(
         False,
@@ -1019,7 +873,10 @@ def reprocess_one(
     key = f"{name}|{institution}"
     console.print(f"[blue]Reprocessing:[/blue] {key}")
 
-    matches = find_matching_profiles(name, institution, max_profiles)
+    _require_auth()
+    matches = find_matching_profiles(name, institution)
+    if matches is None:
+        raise typer.Exit(1)
     if matches:
         console.print(f"[green]Matches:[/green] {matches}")
     else:
@@ -1213,12 +1070,6 @@ def incremental(
         "-r",
         help="Path to existing results JSON file",
     ),
-    max_profiles: int = typer.Option(
-        30,
-        "--max-profiles",
-        "-m",
-        help="Maximum number of profile variants to try (1 to N)",
-    ),
     reprocess_no_matches_flag: bool = typer.Option(
         False,
         "--reprocess-no-matches",
@@ -1254,7 +1105,9 @@ def incremental(
     if reprocess_no_matches_flag:
         console.print("[blue]Reprocessing existing no-matches...[/blue]")
         existing_results = reprocess_no_matches(
-            existing_results, max_profiles, workers=workers
+            existing_results,
+            workers=workers,
+            checkpoint=lambda results: save_results(results_file, results),
         )
 
     # Load all reviewer data
@@ -1286,14 +1139,17 @@ def incremental(
 
     # Process only new reviewers
     console.print(f"[blue]Processing {len(new_reviewers)} new reviewers...[/blue]")
-    new_results = map_profiles(new_reviewers, max_profiles, workers=workers)
+    new_results = map_profiles(
+        new_reviewers,
+        workers=workers,
+        checkpoint=lambda partial: save_results(
+            results_file, merge_mapping_results(existing_results, partial)
+        ),
+    )
 
     # Merge with existing results
     merged_results = merge_mapping_results(existing_results, new_results)
-
-    # Save merged results
-    with open(results_file, "w", encoding="utf-8") as f:
-        json.dump(merged_results, f, indent=2, ensure_ascii=False)
+    save_results(results_file, merged_results)
 
     console.print(f"[green]Updated results saved to {results_file}[/green]")
 
@@ -1326,12 +1182,6 @@ def main(
         "--data-dir",
         "-d",
         help="Directory containing reviewer JSON files",
-    ),
-    max_profiles: int = typer.Option(
-        30,
-        "--max-profiles",
-        "-m",
-        help="Maximum number of profile variants to try (1 to N)",
     ),
     output_file: Optional[Path] = typer.Option(
         None,
@@ -1375,7 +1225,7 @@ def main(
     console.print(f"[blue]Found {len(reviewers)} reviewers to process[/blue]")
 
     # Map profiles
-    results = map_profiles(reviewers, max_profiles, output_file, workers=workers)
+    results = map_profiles(reviewers, output_file, workers=workers)
 
     # Display summary
     display_summary(results)
