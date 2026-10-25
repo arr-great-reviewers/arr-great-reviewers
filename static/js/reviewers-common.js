@@ -85,10 +85,13 @@ class ReviewerPageManager {
     this.reviewerDatabase = reviewerDatabase;
     window.reviewerDatabase = reviewerDatabase; // Make globally available
     
-    // Build ID mapping for URL generation
+    // Build ID mapping for URL generation: current name|institution plus every
+    // name|institution pair the reviewer appeared under in earlier cycles
     Object.values(reviewerDatabase).forEach(reviewer => {
-      const key = `${reviewer.name}|${reviewer.institution}`;
-      this.reviewerIdMap[key] = reviewer.openreview_id;
+      this.reviewerIdMap[`${reviewer.name}|${reviewer.institution}`] = reviewer.openreview_id;
+      (reviewer.source_keys || []).forEach(key => {
+        this.reviewerIdMap[key] = reviewer.openreview_id;
+      });
     });
   }
 

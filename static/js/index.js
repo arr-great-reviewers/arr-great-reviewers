@@ -267,8 +267,10 @@ function loadIndexData() {
       // Function to find reviewer profile URL
       function getReviewerProfileUrl(name, institution) {
         // Search through the reviewer database to find matching reviewer
+        const key = `${name}|${institution}`;
         for (const [openreviewId, reviewerData] of Object.entries(reviewerDatabase)) {
-          if (reviewerData.name === name && reviewerData.institution === institution) {
+          if ((reviewerData.name === name && reviewerData.institution === institution) ||
+              (reviewerData.source_keys || []).includes(key)) {
             // Convert OpenReview ID to URL-safe format
             const urlSafeId = openreviewId.replace('~', '').replace(/[\/\\]/g, '-');
             return `/reviewer/${urlSafeId}/`;

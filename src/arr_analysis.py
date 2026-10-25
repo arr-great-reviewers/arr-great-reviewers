@@ -7,7 +7,11 @@ import numpy as np
 import pandas as pd
 from rich import print
 
-from src.reviewer_utils import get_reviewer_openreview_id, load_reviewer_mappings
+from src.reviewer_utils import (
+    get_reviewer_openreview_id,
+    load_institution_overrides,
+    load_reviewer_mappings,
+)
 
 RAW_DIR = Path("data/raw")
 METRIC_DIR = Path("data/metrics")
@@ -84,6 +88,15 @@ def build_metrics(df: pd.DataFrame) -> None:
             )
             .reset_index()
         )
+        # Display institution: manual override wins over the most recent ARR affiliation
+        overrides = load_institution_overrides()
+        consolidated_reviewers["institution"] = [
+            overrides.get(openreview_id, institution)
+            for openreview_id, institution in zip(
+                consolidated_reviewers["openreview_id"],
+                consolidated_reviewers["institution"],
+            )
+        ]
     else:
         consolidated_reviewers = pd.DataFrame(
             columns=[

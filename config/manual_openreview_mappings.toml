@@ -39,3 +39,12 @@
 "Susanna Rücker|Humboldt-Universität zu Berlin" = "~Susanna_Rücker1"
 "Lillian Lee|Department of Computer Science, Cornell University" = "~Lillian_Lee1"
 "Hiroyuki Deguchi|NTT Communications" = "~Hiroyuki_Deguchi1"
+
+# Institution shown for a reviewer on their profile, the leaderboards and search,
+# instead of the affiliation from their most recent ARR cycle. Per-cycle rows and
+# institution rankings keep the affiliation ARR reported for each cycle.
+# Format: "openreview_profile_id" = "Institution" (use the canonical profile ID)
+
+[institution_overrides]
+
+"~Marek_Suppa1" = "Comenius University in Bratislava"

@@ -44,6 +44,25 @@ def load_manual_mappings() -> Dict[str, str]:
     return data.get("mappings", {})
 
 
+@lru_cache(maxsize=1)
+def load_institution_overrides() -> Dict[str, str]:
+    """
+    Load display-institution overrides keyed by OpenReview profile ID.
+
+    Returns:
+        Dictionary mapping OpenReview profile ID to the institution to display
+    """
+    manual_file = Path("config/manual_openreview_mappings.toml")
+
+    if not manual_file.exists():
+        return {}
+
+    with open(manual_file, "rb") as f:
+        data = tomllib.load(f)
+
+    return data.get("institution_overrides", {})
+
+
 def load_reviewer_mappings() -> Dict[str, Dict]:
     """
     Load the OpenReview profile mappings.
@@ -168,12 +187,23 @@ def build_reviewer_database() -> Dict[str, Dict]:
                 reviewer_db[openreview_id]["name"] = name
                 reviewer_db[openreview_id]["institution"] = institution
 
+            # Every name|institution pair this reviewer appeared under, so per-cycle
+            # tables can still link rows that use an older name or affiliation.
+            keys = reviewer_db[openreview_id].setdefault("source_keys", [])
+            if f"{name}|{institution}" not in keys:
+                keys.append(f"{name}|{institution}")
+
             # Add cycle-specific data
             reviewer_db[openreview_id]["cycles"][cycle_name] = {
                 "recognized": int(reviewer.get("recognized", 0)),
                 "reviewed": int(reviewer.get("reviewed", 0)),
                 "percentage": float(reviewer.get("percentage", 0.0)),
             }
+
+    # Display institution: manual override wins over the most recent ARR affiliation
+    for openreview_id, institution in load_institution_overrides().items():
+        if openreview_id in reviewer_db:
+            reviewer_db[openreview_id]["institution"] = institution
 
     # Recalculate overall totals from cycle data for all reviewers
     for openreview_id, reviewer_data in reviewer_db.items():

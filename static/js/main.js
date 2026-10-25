@@ -509,8 +509,10 @@ function makeEnhancedTable(tableId, config = {}) {
   function getReviewerProfileUrl(name, institution) {
     // Check if reviewer database is available globally
     if (typeof window.reviewerDatabase !== 'undefined') {
+      const key = `${name}|${institution}`;
       for (const [openreviewId, reviewerData] of Object.entries(window.reviewerDatabase)) {
-        if (reviewerData.name === name && reviewerData.institution === institution) {
+        if ((reviewerData.name === name && reviewerData.institution === institution) ||
+            (reviewerData.source_keys || []).includes(key)) {
           const urlSafeId = openreviewId.replace('~', '').replace(/[\/\\]/g, '-');
           return `/reviewer/${urlSafeId}/`;
         }
