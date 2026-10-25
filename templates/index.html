@@ -25,12 +25,12 @@
 
 {% block content %}
 <div class="hero-section animate-fade-in">
-  <h2>They actually did read the paper!</h2>
-  <p>Most reviews get written and forgotten. These didn't. This is their hall of fame.</p>
-  <blockquote class="hero-quote">
-    "Strong, decisive, helpful, and well-written."
-    <cite><a href="/about/#what-makes-a-great-review">What ARR counts as a great review</a></cite>
-  </blockquote>
+  <h2>These reviewers actually did read the paper!</h2>
+  <p>Most reviews get written and forgotten.<br>Theirs didn't.<br>This is their hall of fame.</p>
+  <p class="hero-invite">
+    Have you reviewed for ARR? You might have provided
+    <span class="nowrap">a <a href="/about/#what-makes-a-great-review" class="great-review-badge" title="What ARR counts as a great review">Great Review</a>.</span>
+  </p>
   <div class="profile-finder-search">
     <input type="text"
            id="profile-search-input"
@@ -46,6 +46,12 @@
     </button>
   </div>
   <div id="profile-search-results" class="profile-search-results"></div>
+  {% if recognized_reviewer_count %}
+  <p class="hero-note">
+    <b>{{ "{:,}".format(recognized_reviewer_count) }} reviewers</b> have had a review flagged as great by an Area Chair.
+    Very few of them were likely ever told.
+  </p>
+  {% endif %}
 </div>
 
 <div class="stats-grid animate-fade-in">

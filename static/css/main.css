@@ -1720,6 +1720,7 @@ table,
 
   header h1 {
     font-size: 1.5rem;
+    white-space: nowrap;
   }
 
   nav {
@@ -1731,32 +1732,86 @@ table,
   }
 }
 
+/* Between the mobile menu and wide screens, tighten the nav so the bar stays one row */
+@media (min-width: 769px) and (max-width: 1100px) {
+  header {
+    gap: 1rem;
+  }
+
+  header h1 {
+    font-size: 1.25rem;
+  }
+
+  nav {
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+  }
+
+  nav a {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+
+  .nav-search-toggle,
+  .theme-toggle {
+    padding: 0.5rem;
+  }
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   header {
     padding: 1rem 0;
   }
 }
 
-/* Home page hero: one-line definition and the reviewer search */
-.hero-quote {
-  margin: 1.25rem auto 1.75rem;
-  font-size: 1.2rem;
-  font-style: italic;
+/* The "Great Review" badge, as ARR's own wording; shared by the hero and the definition banner */
+.great-review-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2d6a4f 0%, #1e5a3f 100%);
+  color: white;
+  font-weight: 700;
+  font-style: normal;
+  text-decoration: none;
+  transform: rotate(-1deg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+a.great-review-badge:hover {
+  color: white;
+  transform: rotate(-1deg) translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+a.great-review-badge:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Home page hero: invitation to look yourself up, then the reviewer search */
+.hero-section .hero-invite {
+  margin: 1.5rem auto 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.8;
   color: var(--primary-ink);
 }
 
-.hero-quote cite {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.9rem;
-  font-style: normal;
+.hero-section .hero-note {
+  margin: 1rem auto 0;
+  max-width: 600px;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
 }
 
-.hero-quote cite a {
-  color: var(--text-secondary);
-  text-decoration: underline;
-  text-decoration-color: var(--accent-color);
-  text-underline-offset: 3px;
+.hero-section .hero-note b {
+  color: var(--text-primary);
 }
 
 .hero-section .profile-finder-search,

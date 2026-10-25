@@ -313,7 +313,11 @@ def build_site(
         "description": "Visualisations of ARR Great Reviewers data.",
         "cycles": cycles,
     }
-    render("index.html", {**common, "metrics": metrics}, SITE / "index.html")
+    render(
+        "index.html",
+        {**common, "metrics": metrics, "recognized_reviewer_count": len(reviewer_db)},
+        SITE / "index.html",
+    )
     render(
         "reviewers.html",
         {**common, "metrics": metrics},
