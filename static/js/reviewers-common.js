@@ -155,14 +155,18 @@ class ReviewerPageManager {
    */
   createRecognitionChart(reviewerData, chartElementId) {
     const topData = reviewerData.slice(0, this.config.chartTopCount);
-    renderRankedBarChart(chartElementId, {
+    renderRankedDotChart(chartElementId, {
       items: topData.map(d => ({
         label: d.name || 'Anonymous',
+        url: this.getReviewerUrl(d.name || '', d.institution || ''),
         value: d.recognized || 0,
-        text: String(d.recognized || 0)
+        text: String(d.recognized || 0),
+        detail: `of ${d.reviewed || 0}`,
+        extra: [d.reviewed || 0]
       })),
       valueTitle: 'Great reviews',
-      hovertemplate: '<b>%{customdata[0]}</b><br>Great reviews: %{x}<extra></extra>',
+      integerValues: true,
+      hovertemplate: '<b>%{customdata[0]}</b><br>Great reviews: %{x} of %{customdata[1]}<extra></extra>',
       onClick: index => this.openReviewer(topData[index])
     });
   }
@@ -196,22 +200,26 @@ class ReviewerPageManager {
     // Filter to reviewers with minimum review count
     const filteredData = TableUtils.DataUtils.filterByMinReviews(data, this.config.minReviewsForPercentage);
     
-    // Calculate percentages and sort
+    // Calculate percentages and sort; ties as documented on About: more great reviews, then more reviews
     const dataWithPercentage = filteredData.map(d => ({
       ...d,
       percentage: d.reviewed > 0 ? (d.recognized / d.reviewed) * 100 : 0
-    })).sort((a, b) => b.percentage - a.percentage);
+    })).sort((a, b) =>
+      b.percentage - a.percentage || b.recognized - a.recognized || b.reviewed - a.reviewed
+    );
     
     const topData = dataWithPercentage.slice(0, this.config.chartTopCount);
-    renderRankedBarChart(chartElementId, {
+    renderRankedDotChart(chartElementId, {
       items: topData.map(d => ({
         label: d.name || 'Anonymous',
+        url: this.getReviewerUrl(d.name || '', d.institution || ''),
         value: d.percentage,
-        text: `${d.percentage.toFixed(1)}% (${d.recognized || 0})`,
+        text: `${d.percentage.toFixed(1)}%`,
+        detail: `${d.recognized || 0} of ${d.reviewed || 0}`,
         extra: [d.recognized || 0, d.reviewed || 0]
       })),
-      valueTitle: 'Recognition rate (%)',
-      range: [0, 100],
+      valueTitle: 'Recognition rate',
+      tickSuffix: '%',
       hovertemplate: '<b>%{customdata[0]}</b><br>Recognition rate: %{x:.1f}%<br>Great reviews: %{customdata[1]}<br>Total reviews: %{customdata[2]}<extra></extra>',
       onClick: index => this.openReviewer(topData[index])
     });

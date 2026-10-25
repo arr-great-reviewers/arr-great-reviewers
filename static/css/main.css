@@ -25,11 +25,11 @@
   --header-bg-end: #0f2744;
   /* Plotly charts read these through getComputedStyle (see ChartTheme in main.js) */
   --chart-bar: #1e3a5f;
-  --chart-bar-text: #ffffff;
-  --medal-gold: #fbbf24;
-  --medal-silver: #e5e7eb;
-  --medal-bronze: #c9975e;
-  --medal-text: #1a1a1a;
+  --chart-stem: #c7d2e0;
+  /* Dot colours for the top three distinct values in leaderboard charts */
+  --medal-gold: #d4a017;
+  --medal-silver: #9aa3ae;
+  --medal-bronze: #b8733a;
   --banner-bg-start: #faf8f5;
   --banner-bg-end: #f5f0e8;
   --banner-border: #e8e4dc;
@@ -58,7 +58,10 @@
   --header-bg-start: #16304f;
   --header-bg-end: #0b1a2e;
   --chart-bar: #6f9bd1;
-  --chart-bar-text: #0c131d;
+  --chart-stem: #2f4258;
+  --medal-gold: #e2b53a;
+  --medal-silver: #c3cad3;
+  --medal-bronze: #d08a52;
   --banner-bg-start: #172231;
   --banner-bg-end: #121a24;
   --banner-border: #2a3747;
@@ -1887,6 +1890,37 @@ a.great-review-badge:focus-visible {
   .latest-cycle-list .latest-institution {
     display: none;
   }
+}
+
+/* Names in leaderboard dot charts: real links (.reviewer-link / .institution-link) laid over
+   the chart's left margin, one per row. Measured in normal flow, then positioned per row. */
+.ranked-dot-names {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
+}
+
+.ranked-dot-names.positioned {
+  bottom: 0;
+}
+
+.ranked-dot-names > * {
+  white-space: nowrap;
+}
+
+.ranked-dot-names.positioned > * {
+  position: absolute;
+  right: 0;
+}
+
+.ranked-dot-names > span {
+  padding: 0.25rem 0.5rem;
+  color: var(--text-primary);
 }
 
 /* Light/dark toggle in the header nav; shows the icon of the theme it switches to */

@@ -31,9 +31,8 @@ const ChartTheme = {
       grid: value('--border-color'),
       surface: value('--bg-primary'),
       bar: value('--chart-bar'),
-      barText: value('--chart-bar-text'),
-      medals: [value('--medal-gold'), value('--medal-silver'), value('--medal-bronze')],
-      medalText: value('--medal-text')
+      stem: value('--chart-stem'),
+      medals: [value('--medal-gold'), value('--medal-silver'), value('--medal-bronze')]
     };
   },
 
@@ -111,66 +110,145 @@ function initializeThemeToggle() {
 }
 
 /**
- * Horizontal ranked bar chart: rank 1 on top, gold/silver/bronze for the first three.
- * Bars are positioned by index so two people with the same name stay separate rows.
+ * Ranked dot chart: one line and dot per item, highest first.
+ * Medals go by distinct value: everyone with the highest value is gold, the next
+ * value silver, the next bronze, so a three-way tie for first still leaves silver
+ * and bronze for the following values. Names are HTML links (`url`, `linkClass`)
+ * laid over the chart, so they look and hover like the site's other links.
+ * Values sit in a right-aligned column: the main number (`text`) in bold, the
+ * supporting "x of y" (`detail`) muted. Rows are positioned by index so two
+ * people with the same name stay separate.
  */
-function renderRankedBarChart(elementId, { items, valueTitle, range, hovertemplate, onClick }) {
+function renderRankedDotChart(elementId, { items, valueTitle, tickSuffix = '', integerValues = false, linkClass = 'reviewer-link', hovertemplate, onClick }) {
   const element = document.getElementById(elementId);
   if (!element) return;
+  element.classList.add('ranked-dot-chart');
 
-  const rowHeight = 32;
-  element.style.height = `${items.length * rowHeight + 70}px`;
+  const rowHeight = 30;
+  const marginTop = 10;
+  const marginBottom = 45;
+  const chartHeight = items.length * rowHeight + marginTop + marginBottom + 15;
+  element.style.height = `${chartHeight}px`;
   const positions = items.map((_, i) => i);
-  // Counts are whole numbers; stop Plotly from placing ticks at 0.5, 1.5, ... on small ranges.
-  const maxValue = Math.max(0, ...items.map(item => item.value));
-  const integerTicks = !range && maxValue <= 10 ? { dtick: 1 } : {};
+  const values = items.map(item => item.value);
+  const maxValue = Math.max(0, ...values);
+  // Compare at the precision shown (one decimal), so 10/12 and 5/6 share a medal.
+  const medalKey = v => Math.round(v * 10) / 10;
+  const medalValues = [...new Set(values.map(medalKey))].sort((a, b) => b - a).slice(0, 3);
+  // Whole-number data on a small range: stop Plotly from placing ticks at 0.5, 1.5, ...
+  const ticks = integerValues && maxValue <= 10 ? { dtick: 1 } : {};
 
   ChartTheme.bind(() => {
     const colors = ChartTheme.colors();
-    const trace = {
-      type: 'bar',
-      orientation: 'h',
-      x: items.map(item => item.value),
+    const dotColors = values.map(v => colors.medals[medalValues.indexOf(medalKey(v))] || colors.bar);
+    // Two value columns in the right margin: bold number right-aligned, muted detail left-aligned.
+    const narrow = element.clientWidth < 560;
+    const fontSize = narrow ? 11 : 13;
+    const numberWidth = narrow ? 42 : 56;
+    const detailWidth = items.some(item => item.detail) ? (narrow ? 50 : 66) : 0;
+    const gap = 6;
+    const shorten = label => (narrow && label.length > 18 ? `${label.slice(0, 17)}…` : label);
+    const names = renderNameColumn(element, items, {
+      linkClass, shorten, fontSize, rowHeight: (chartHeight - marginTop - marginBottom) / items.length, top: marginTop
+    });
+    const dots = {
+      type: 'scatter',
+      mode: 'markers',
+      x: values,
       y: positions,
       customdata: items.map(item => [item.label, ...(item.extra || [])]),
       hovertemplate,
-      marker: { color: items.map((_, i) => colors.medals[i] || colors.bar) },
-      text: items.map(item => item.text),
-      textposition: 'auto',
-      insidetextanchor: 'end',
-      insidetextfont: { size: 13, color: items.map((_, i) => (i < 3 ? colors.medalText : colors.barText)) },
-      outsidetextfont: { size: 13, color: colors.textStrong },
+      marker: { size: 11, color: dotColors },
       cliponaxis: false
     };
+    const stems = items.map((item, i) => ({
+      type: 'line',
+      layer: 'below',
+      x0: 0,
+      x1: item.value,
+      y0: i,
+      y1: i,
+      line: { color: colors.stem, width: 2 }
+    }));
+    const numberLabels = items.map((item, i) => ({
+      xref: 'paper', yref: 'y', x: 1, y: i,
+      xanchor: 'right', xshift: numberWidth, showarrow: false,
+      font: { size: fontSize, color: colors.textStrong },
+      text: `<b>${item.text}</b>`
+    }));
+    const detailLabels = items.filter(item => item.detail).map(item => ({
+      xref: 'paper', yref: 'y', x: 1, y: items.indexOf(item),
+      xanchor: 'left', xshift: numberWidth + gap, showarrow: false,
+      font: { size: fontSize, color: colors.text },
+      text: item.detail
+    }));
     const layout = {
       ...ChartTheme.baseLayout(colors),
-      margin: { l: 10, r: 30, t: 10, b: 50 },
-      bargap: 0.25,
+      margin: { l: names.width + 8, r: numberWidth + gap + detailWidth, t: marginTop, b: marginBottom },
+      shapes: stems,
+      annotations: [...numberLabels, ...detailLabels],
       xaxis: {
-        title: valueTitle,
-        range,
-        rangemode: 'tozero',
-        ...integerTicks,
-        gridcolor: colors.grid,
-        zerolinecolor: colors.grid,
+        title: { text: valueTitle, font: { size: 12 } },
+        // A little room past the largest dot so it doesn't touch the value column.
+        range: [0, maxValue * (narrow ? 1.12 : 1.04) || 1],
+        ticksuffix: tickSuffix,
+        ...ticks,
+        ...(narrow ? { nticks: 4, tickangle: 0 } : {}),
+        showgrid: false,
+        zeroline: false,
+        showline: false,
         fixedrange: true
       },
       yaxis: {
-        tickmode: 'array',
-        tickvals: positions,
-        ticktext: items.map(item => item.label),
-        tickfont: { size: 13, color: colors.textStrong },
-        autorange: 'reversed',
-        automargin: true,
+        // Names are an HTML column (renderNameColumn) so they behave like the site's other links.
+        range: [items.length - 0.5, -0.5],
+        showticklabels: false,
+        showgrid: false,
+        zeroline: false,
         fixedrange: true
       }
     };
-    Plotly.react(element, [trace], layout, { responsive: true, displayModeBar: false });
+    Plotly.react(element, [dots], layout, { responsive: true, displayModeBar: false });
   });
 
   if (onClick) {
     element.on('plotly_click', event => onClick(event.points[0].pointIndex));
   }
+}
+
+/**
+ * Names for a ranked chart as real links (same classes as the site's other reviewer and
+ * institution links), absolutely positioned on each chart row. Returns the column width.
+ */
+function renderNameColumn(element, items, { linkClass, shorten, fontSize, rowHeight, top }) {
+  element.style.position = 'relative';
+  element.querySelector(':scope > .ranked-dot-names')?.remove();
+
+  const column = document.createElement('div');
+  column.className = 'ranked-dot-names';
+  column.style.fontSize = `${fontSize}px`;
+  const nodes = items.map(item => {
+    const node = document.createElement(item.url ? 'a' : 'span');
+    node.textContent = shorten(item.label);
+    node.title = item.label;
+    if (item.url) {
+      node.href = item.url;
+      node.className = linkClass;
+    }
+    column.appendChild(node);
+    return node;
+  });
+  element.appendChild(column);
+
+  const width = Math.ceil(column.getBoundingClientRect().width);
+  const heights = nodes.map(node => node.offsetHeight);
+  column.style.width = `${width}px`;
+  column.classList.add('positioned');
+  nodes.forEach((node, i) => {
+    // Centre on the row with `top`, not a transform: the link classes use transform on hover.
+    node.style.top = `${top + (i + 0.5) * rowHeight - heights[i] / 2}px`;
+  });
+  return { width };
 }
 
 // Initialize site functionality when DOM is loaded
