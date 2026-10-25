@@ -194,13 +194,15 @@ function loadIndexData() {
       }
     });
 
-  // Fetch top reviewers data
+  // Fetch top reviewers data and the newest cycle's ranking
+  const latestCycleSection = document.getElementById('latest-cycle');
+  const latestCycle = latestCycleSection ? latestCycleSection.dataset.cycle : null;
   Promise.all([
     fetch('/data/metrics/top_people_absolute.json').then(r => r.json()),
-    fetch('/data/metrics/top_institutions_absolute.json').then(r => r.json()),
-    fetch('/data/reviewers_database.json').then(r => r.json())
+    fetch('/data/reviewers_database.json').then(r => r.json()),
+    latestCycle ? fetch(`/data/metrics/reviewers_${latestCycle}.json`).then(r => r.json()) : Promise.resolve([])
   ])
-    .then(([reviewers, institutions, reviewerDatabase]) => {
+    .then(([reviewers, reviewerDatabase, latestCycleReviewers]) => {
       // Make reviewer database globally available for card clicks
       window.reviewerDatabase = reviewerDatabase;
       
@@ -208,12 +210,6 @@ function loadIndexData() {
       const totalReviewersElement = document.getElementById('total-reviewers');
       if (totalReviewersElement) {
         totalReviewersElement.textContent = reviewers.length.toLocaleString();
-      }
-      
-      // Update institution count
-      const topInstitutionsElement = document.getElementById('top-institutions');
-      if (topInstitutionsElement) {
-        topInstitutionsElement.textContent = institutions.length.toLocaleString();
       }
       
       // Update total reviews (estimate based on recognized reviews)
@@ -237,6 +233,24 @@ function loadIndexData() {
         }
         return null; // No profile found
       }
+
+      // Most recognized reviewers of the newest cycle (the file is already ranked)
+      const latestList = document.getElementById('latest-cycle-list');
+      if (latestList) {
+        latestList.innerHTML = latestCycleReviewers.slice(0, 5).map(reviewer => {
+          const profileUrl = getReviewerProfileUrl(reviewer.name, reviewer.institution);
+          const name = profileUrl
+            ? `<a href="${profileUrl}" class="reviewer-link latest-name">${reviewer.name}</a>`
+            : `<span class="latest-name">${reviewer.name}</span>`;
+          return `
+            <li>
+              ${name}
+              <span class="latest-institution">${reviewer.institution || ''}</span>
+              <span class="latest-count"><b>${reviewer.recognized}</b> of ${reviewer.reviewed}</span>
+            </li>
+          `;
+        }).join('');
+      }
       
       // Display top 10 reviewers
       const tbody = document.getElementById('top-reviewers-body');
@@ -249,14 +263,17 @@ function loadIndexData() {
           const reviewerNameDisplay = profileUrl 
             ? `<a href="${profileUrl}" class="reviewer-link"><strong>${reviewer.name || 'Anonymous'}</strong></a>`
             : `<strong>${reviewer.name || 'Anonymous'}</strong>`;
-          
+          const rate = reviewer.reviewed ? (reviewer.recognized / reviewer.reviewed) * 100 : 0;
+
+          // Same column order as the leaderboard pages; the mobile card view reads columns by position
           return `
             <tr class="animate-fade-in" style="animation-delay: ${index * 0.05}s">
               <td><span class="rank-badge ${rankClass}">${index + 1}</span></td>
               <td>${reviewerNameDisplay}</td>
               <td>${reviewer.institution || 'N/A'}</td>
-              <td><strong>${reviewer.recognized || '-'}</strong></td>
               <td>${reviewer.reviewed || '-'}</td>
+              <td><strong>${reviewer.recognized || '-'}</strong></td>
+              <td>${rate.toFixed(1)}%</td>
             </tr>
           `;
         }).join('');
@@ -270,7 +287,7 @@ function loadIndexData() {
       const tbody = document.getElementById('top-reviewers-body');
       if (tbody) {
         tbody.innerHTML = 
-          '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">Unable to load reviewer data</td></tr>';
+          '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">Unable to load reviewer data</td></tr>';
       }
     });
 }

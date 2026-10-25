@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 
-{% block body_class %}page-home{% endblock %}
-
 {% block title %}ARR Great Reviewers - They Actually Did Read the Paper{% endblock %}
 
 {% block description %}They actually did read the paper. ARR Area Chairs flagged these reviews as helpful, thorough, and worth recognizing. This is their hall of fame.{% endblock %}
@@ -28,10 +26,27 @@
 {% block content %}
 <div class="hero-section animate-fade-in">
   <h2>They actually did read the paper!</h2>
-  <p>Most reviews get written and forgotten. These didn't. <br /> ARR Area Chairs flagged them as helpful, thorough, and worth recognizing. <br /> This is their hall of fame.</p>
+  <p>Most reviews get written and forgotten. These didn't. This is their hall of fame.</p>
+  <blockquote class="hero-quote">
+    "Strong, decisive, helpful, and well-written."
+    <cite><a href="/about/#what-makes-a-great-review">What ARR counts as a great review</a></cite>
+  </blockquote>
+  <div class="profile-finder-search">
+    <input type="text"
+           id="profile-search-input"
+           class="profile-search-input"
+           placeholder="Search your name"
+           aria-label="Search reviewers by name"
+           autocomplete="off">
+    <button class="profile-search-button" aria-label="Search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+    </button>
+  </div>
+  <div id="profile-search-results" class="profile-search-results"></div>
 </div>
-
-{% include "great_review_banner.html" %}
 
 <div class="stats-grid animate-fade-in">
   <div class="stat-card">
@@ -45,9 +60,9 @@
     <div class="change">Recognized across all cycles</div>
   </div>
   <div class="stat-card">
-    <h3>Top Institutions</h3>
-    <div class="value" id="top-institutions">-</div>
-    <div class="change">Contributing great reviewers</div>
+    <h3>ARR Cycles</h3>
+    <div class="value">{{ cycles|length }}</div>
+    <div class="change">{{ cycles[0]|cycle_label }} to {{ cycles[-1]|cycle_label }}</div>
   </div>
   <div class="stat-card">
     <h3>Recognition Rate</h3>
@@ -56,38 +71,17 @@
   </div>
 </div>
 
+<div class="content-section latest-cycle animate-fade-in" id="latest-cycle" data-cycle="{{ cycles[-1] }}">
+  <h2>Most recognized in {{ cycles[-1]|cycle_label }}</h2>
+  <ol class="latest-cycle-list" id="latest-cycle-list">
+    <li class="latest-cycle-empty">Loading {{ cycles[-1]|cycle_label }}…</li>
+  </ol>
+  <a href="/reviewers/{{ cycles[-1] }}/" class="latest-cycle-more">All of {{ cycles[-1]|cycle_label }}</a>
+</div>
+
 <div class="content-section animate-fade-in">
   <h2>📊 Review Activity Timeline</h2>
   <div id="snapshot" style="width: 100%; height: 400px;"></div>
-</div>
-
-<div class="profile-finder-section animate-fade-in">
-  <div class="profile-finder-container">
-    <div class="profile-finder-icon">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <path d="m21 21-4.35-4.35"></path>
-      </svg>
-    </div>
-    <div class="profile-finder-content">
-      <h2>Find Your Reviewer Profile</h2>
-      <p>Search by name to discover your review statistics, achievements, and recognition history</p>
-      <div class="profile-finder-search">
-        <input type="text"
-               id="profile-search-input"
-               class="profile-search-input"
-               placeholder="Enter your name..."
-               autocomplete="off">
-        <button class="profile-search-button" aria-label="Search">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-          </svg>
-        </button>
-      </div>
-      <div id="profile-search-results" class="profile-search-results"></div>
-    </div>
-  </div>
 </div>
 
 <div class="content-section animate-fade-in">
@@ -99,13 +93,14 @@
           <th class="sortable">Rank</th>
           <th class="sortable">Reviewer</th>
           <th class="sortable">Institution</th>
-          <th class="sortable">Great Reviews</th>
           <th class="sortable">Total Reviews</th>
+          <th class="sortable">Great Reviews</th>
+          <th class="sortable">Recognition Rate</th>
         </tr>
       </thead>
       <tbody id="top-reviewers-body">
         <tr>
-          <td colspan="5" style="text-align: center; padding: 2rem;">Loading leaderboard data...</td>
+          <td colspan="6" style="text-align: center; padding: 2rem;">Loading leaderboard data...</td>
         </tr>
       </tbody>
     </table>

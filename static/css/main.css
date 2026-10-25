@@ -144,13 +144,6 @@ header h1 {
   letter-spacing: -0.02em;
 }
 
-header p {
-  text-align: center;
-  font-size: 1.125rem;
-  opacity: 0.9;
-  margin-bottom: 1.5rem;
-}
-
 /* Navigation */
 nav {
   display: flex;
@@ -937,75 +930,6 @@ footer a:hover {
   font-size: 0.875rem;
 }
 
-/* Profile Finder Section Styles */
-.profile-finder-section {
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%);
-  border-radius: 1rem;
-  padding: 3rem;
-  margin-bottom: 3rem;
-  box-shadow: var(--shadow-lg);
-  position: relative;
-  overflow: hidden;
-  animation: shimmerGradient 20s ease infinite;
-  background-size: 200% 200%;
-}
-
-.profile-finder-section::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 60%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-  transform: rotate(45deg);
-}
-
-.profile-finder-container {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.profile-finder-icon {
-  flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(10px);
-}
-
-.profile-finder-icon svg {
-  width: 48px;
-  height: 48px;
-  color: white;
-}
-
-.profile-finder-content {
-  flex: 1;
-  color: white;
-}
-
-.profile-finder-content h2 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: white;
-}
-
-.profile-finder-content p {
-  font-size: 1.125rem;
-  opacity: 0.9;
-  margin-bottom: 1.5rem;
-}
-
 .profile-finder-search {
   position: relative;
   display: flex;
@@ -1015,13 +939,13 @@ footer a:hover {
 
 .profile-search-input {
   flex: 1;
-  padding: 1rem 1.5rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--primary-ink);
   border-radius: 0.75rem;
-  font-size: 1rem;
+  font-size: 1.05rem;
   background: var(--bg-primary);
   color: var(--text-primary);
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .profile-search-input::placeholder {
@@ -1030,32 +954,25 @@ footer a:hover {
 
 .profile-search-input:focus {
   outline: none;
-  border-color: white;
-  background: var(--bg-primary);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.25);
 }
 
 .profile-search-button {
   padding: 1rem 1.5rem;
-  background: white;
+  background: var(--primary-color);
   border: none;
   border-radius: 0.75rem;
-  color: var(--primary-color);
+  color: white;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .profile-search-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.profile-search-button:active {
-  transform: translateY(0);
+  background: var(--secondary-color);
 }
 
 .profile-search-results {
@@ -1165,11 +1082,6 @@ footer a:hover {
   color: var(--text-secondary);
 }
 
-/* Enhanced animations */
-.profile-search-input:focus ~ .profile-search-button {
-  background: linear-gradient(135deg, white 0%, #f0f9ff 100%);
-}
-
 /* Loading state for search */
 .profile-search-loading {
   display: flex;
@@ -1198,12 +1110,6 @@ footer a:hover {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-@keyframes shimmerGradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
 }
 
 @keyframes fadeInResult {
@@ -1256,12 +1162,6 @@ footer a:hover {
   
   header h1 {
     font-size: 1.75rem;
-  }
-  
-  header p {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-    padding: 0 1rem;
   }
   
   .mobile-nav-toggle {
@@ -1334,35 +1234,6 @@ footer a:hover {
   
   .nav-search-dropdown.active {
     transform: translate(-50%, -50%);
-  }
-  
-  .profile-finder-section {
-    padding: 2rem 1.5rem;
-    margin-bottom: 2rem;
-  }
-  
-  .profile-finder-container {
-    flex-direction: column;
-    text-align: center;
-    gap: 1.5rem;
-  }
-  
-  .profile-finder-icon {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .profile-finder-icon svg {
-    width: 36px;
-    height: 36px;
-  }
-  
-  .profile-finder-content h2 {
-    font-size: 1.5rem;
-  }
-  
-  .profile-finder-content p {
-    font-size: 1rem;
   }
   
   .profile-finder-search {
@@ -1558,10 +1429,6 @@ footer a:hover {
 
   header h1 {
     font-size: 1.5rem;
-  }
-  
-  header p {
-    font-size: 0.9rem;
   }
   
   .hero-section {
@@ -1830,13 +1697,9 @@ table,
   font-variant-numeric: tabular-nums;
 }
 
-/* Compact header on every page except the home page */
-body:not(.page-home) header p {
-  display: none;
-}
-
+/* Header: one compact bar on every page */
 @media (min-width: 769px) {
-  body:not(.page-home) header {
+  header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1844,33 +1707,130 @@ body:not(.page-home) header p {
     padding: 1rem max(1.5rem, calc((100% - 1400px) / 2 + 1.5rem));
   }
 
-  body:not(.page-home) .logo-title-link {
+  .logo-title-link {
     flex-wrap: nowrap;
     gap: 0.75rem;
   }
 
-  body:not(.page-home) .site-logo {
+  .site-logo {
     height: 44px;
     padding: 2px;
     border-radius: 8px;
   }
 
-  body:not(.page-home) header h1 {
+  header h1 {
     font-size: 1.5rem;
   }
 
-  body:not(.page-home) nav {
+  nav {
     justify-content: flex-end;
   }
 
-  body:not(.page-home) nav a {
+  nav a {
     padding: 0.6rem 1rem;
   }
 }
 
 @media (max-width: 768px) {
-  body:not(.page-home) header {
+  header {
     padding: 1rem 0;
+  }
+}
+
+/* Home page hero: one-line definition and the reviewer search */
+.hero-quote {
+  margin: 1.25rem auto 1.75rem;
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--primary-ink);
+}
+
+.hero-quote cite {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  font-style: normal;
+}
+
+.hero-quote cite a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-color);
+  text-underline-offset: 3px;
+}
+
+.hero-section .profile-finder-search,
+.hero-section .profile-search-results {
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left;
+}
+
+/* Home page: most recognized reviewers of the newest cycle */
+.latest-cycle-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  counter-reset: latest;
+}
+
+.latest-cycle-list li {
+  counter-increment: latest;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.latest-cycle-list li::before {
+  content: counter(latest);
+  min-width: 1.25rem;
+  text-align: right;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.latest-cycle-list li.latest-cycle-empty::before {
+  content: none;
+}
+
+.latest-cycle-list .latest-name {
+  font-weight: 600;
+}
+
+.latest-cycle-list .latest-institution {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.latest-cycle-list .latest-count {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.latest-cycle-list .latest-count b {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.latest-cycle-more {
+  color: var(--primary-ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 2px solid var(--accent-color);
+}
+
+@media (max-width: 768px) {
+  .latest-cycle-list .latest-institution {
+    display: none;
   }
 }
 
