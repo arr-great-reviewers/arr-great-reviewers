@@ -112,6 +112,25 @@ The result is written to `data/contacts/top100_contacts.{csv,json}`. Everything 
 `data/contacts/` is gitignored and contains personal data: check every row by hand
 before sending anything, and delete the files when you are done.
 
+### Removing a reviewer
+
+Reviewers who ask to be removed are listed by OpenReview ID in the
+`EXCLUDED_REVIEWERS` environment variable (separated by commas, spaces or newlines).
+`src/arr_dl.py` drops their rows from the downloaded ARR data, so they disappear from
+every page, ranking and institution total, and from the data files copied to the site.
+
+In CI the variable comes from the `EXCLUDED_REVIEWERS` GitHub Actions secret, so the
+repository never lists who opted out. To remove someone, add their ID to the secret
+(Settings → Secrets and variables → Actions) and re-run the deploy workflow. For a
+local build:
+
+```bash
+EXCLUDED_REVIEWERS="~Jane_Doe1" make build
+```
+
+Rows only match when the reviewer's name and institution map to their OpenReview ID,
+so check that the mapping exists (`make map-openreview-check`) before relying on it.
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages

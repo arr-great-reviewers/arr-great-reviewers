@@ -1,14 +1,26 @@
 """Utilities for reviewer identification and data processing."""
 
 import json
+import os
+import re
 import tomllib
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, FrozenSet, Optional
 
 _MONTHS = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 
@@ -18,7 +30,6 @@ def format_cycle(cycle: str) -> str:
     if not (year.isdigit() and month.isdigit() and 1 <= int(month) <= 12):
         return cycle
     return f"{_MONTHS[int(month) - 1]} {year}"
-
 
 
 def get_reviewer_unique_id(
@@ -125,6 +136,29 @@ def get_reviewer_openreview_id(
     return None
 
 
+@lru_cache(maxsize=1)
+def load_excluded_reviewers() -> FrozenSet[str]:
+    """OpenReview IDs of reviewers who asked to be removed from the site.
+
+    Read from the EXCLUDED_REVIEWERS environment variable (IDs separated by commas,
+    spaces or newlines). CI fills it from a GitHub Actions secret, so the repository
+    never lists who opted out.
+    """
+    raw = os.getenv("EXCLUDED_REVIEWERS", "")
+    return frozenset(i for i in re.split(r"[\s,]+", raw) if i)
+
+
+def is_excluded_reviewer(
+    name: str, institution: str, mappings: Dict[str, Dict]
+) -> bool:
+    """Whether this raw ARR row belongs to an excluded reviewer."""
+    excluded = load_excluded_reviewers()
+    return (
+        bool(excluded)
+        and get_reviewer_openreview_id(name, institution, mappings) in excluded
+    )
+
+
 def build_reviewer_database() -> Dict[str, Dict]:
     """
     Build a comprehensive reviewer database with only reviewers who have OpenReview IDs.
@@ -150,8 +184,9 @@ def build_reviewer_database() -> Dict[str, Dict]:
             institution = reviewer["institution"]
             openreview_id = get_reviewer_openreview_id(name, institution, mappings)
 
-            # Only include reviewers with actual OpenReview IDs
-            if not openreview_id:
+            # Only include reviewers with actual OpenReview IDs (and not opted out;
+            # this file can predate the exclusion when metrics are stale)
+            if not openreview_id or openreview_id in load_excluded_reviewers():
                 continue
 
             reviewer_db[openreview_id] = {

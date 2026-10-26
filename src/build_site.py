@@ -37,7 +37,11 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from src.reviewer_utils import format_cycle
+from src.reviewer_utils import (
+    format_cycle,
+    get_reviewer_openreview_id,
+    load_excluded_reviewers,
+)
 
 TEMPLATES = Path("templates")
 SITE = Path("site")
@@ -271,11 +275,23 @@ def build_site(
             institution_mappings_source, SITE / "data" / "institution_mappings.json"
         )
 
-    # Copy OpenReview profile mapping for JavaScript lookup
+    # Copy OpenReview profile mapping for JavaScript lookup, minus opted-out reviewers
     openreview_mapping_source = Path("data/openreview_profile_mapping.json")
     if openreview_mapping_source.exists():
-        shutil.copy2(
-            openreview_mapping_source, SITE / "data" / "openreview_profile_mapping.json"
+        mapping = json.loads(openreview_mapping_source.read_text(encoding="utf-8"))
+        excluded = load_excluded_reviewers()
+        if excluded:
+            for category in ("single_matches", "multiple_matches", "no_matches"):
+                entries = mapping.get(category, {})
+                for key in [
+                    k
+                    for k, v in entries.items()
+                    if excluded & set(v.get("openreview_profiles", []))
+                    or get_reviewer_openreview_id(*k.split("|", 1), mapping) in excluded
+                ]:
+                    del entries[key]
+        (SITE / "data" / "openreview_profile_mapping.json").write_text(
+            json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
     # Load metrics for template rendering
