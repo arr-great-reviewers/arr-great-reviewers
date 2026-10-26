@@ -56,14 +56,20 @@ EXTRA_PAGE_HINT = re.compile(r"contact|about|cv|bio|me\b|people|home", re.I)
 EMAIL_RE = re.compile(
     r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}"
 )
+# Local part of a spelled-out address, including spelled-out dots ("michael dot ginn",
+# "b (dot) plank"); without this only the last word before "at" was kept.
+_SPELLED_LOCAL = (
+    r"[A-Za-z0-9_%+-]+(?:(?:\s*[\[\(\{<]\s*(?:dot|DOT)\s*[\]\)\}>]\s*|\s+(?:dot|DOT)\s+|\.)"
+    r"[A-Za-z0-9_%+-]+)*"
+)
 # "name [at] host [dot] edu", "name(at)host.edu", "name {at} host . edu"
 BRACKETED_RE = re.compile(
-    r"([A-Za-z0-9._%+-]+)\s*[\[\(\{<]\s*(?:at|AT|@)\s*[\]\)\}>]\s*"
+    rf"({_SPELLED_LOCAL})\s*[\[\(\{{<]\s*(?:at|AT|@)\s*[\]\)\}}>]\s*"
     r"([A-Za-z0-9-]+(?:\s*(?:[\[\(\{<]\s*(?:dot|DOT|\.)\s*[\]\)\}>]|\.|\s+dot\s+)\s*[A-Za-z0-9-]+)+)"
 )
 # "name at host dot edu" (bare words; requires a "dot" word to avoid prose)
 BARE_RE = re.compile(
-    r"\b([A-Za-z0-9._%+-]+)\s+(?:at|AT)\s+([A-Za-z0-9-]+(?:\s+(?:dot|DOT)\s+[A-Za-z0-9-]+)+)\b"
+    rf"\b({_SPELLED_LOCAL})\s+(?:at|AT)\s+([A-Za-z0-9-]+(?:\s+(?:dot|DOT)\s+[A-Za-z0-9-]+)+)\b"
 )
 DOT_RE = re.compile(
     r"\s*(?:[\[\(\{<]\s*(?:dot|DOT|\.)\s*[\]\)\}>]|\s+(?:dot|DOT)\s+|\.)\s*"
@@ -248,7 +254,7 @@ def extract_emails(page: str) -> List[str]:
     text = html.unescape(TAG_RE.sub(" ", SCRIPT_STYLE_RE.sub(" ", page)))
     for regex in (BRACKETED_RE, BARE_RE):
         for local, domain in regex.findall(text):
-            found.append(f"{local}@{DOT_RE.sub('.', domain)}")
+            found.append(f"{DOT_RE.sub('.', local)}@{DOT_RE.sub('.', domain)}")
     return _dedupe_valid(found)
 
 
