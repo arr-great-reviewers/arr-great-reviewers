@@ -1977,3 +1977,18 @@ a.great-review-badge:focus-visible {
     content: 'Light mode';
   }
 }
+
+/* Link from a profile's cycle row to ARR's own statistics page */
+.arr-source {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.arr-source:hover { text-decoration: underline; }
+
+.see-all {
+  margin-top: 1rem;
+  text-align: right;
+}

@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import multiprocessing as mp
+import re
 import shutil
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -37,7 +38,13 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from src.reviewer_utils import format_cycle
+from src.reviewer_utils import (
+    HIDDEN_AFFILIATION,
+    format_cycle,
+    get_reviewer_openreview_id,
+    load_excluded_reviewers,
+    load_hidden_affiliations,
+)
 
 TEMPLATES = Path("templates")
 SITE = Path("site")
@@ -56,13 +63,42 @@ def _asset_version() -> str:
 ASSET_VERSION = _asset_version()
 
 
-def render(template: str, context: dict, out: Path) -> None:
-    env = Environment(
-        loader=FileSystemLoader(str(TEMPLATES)),
-        autoescape=select_autoescape(["html", "xml"]),
-    )
+def _cycle_stats_pages() -> Dict[str, str]:
+    """ARR's public stats page for each cycle, from the JSON URLs we download."""
+    import tomllib
+
+    with open("config/data_sources.toml", "rb") as f:
+        sources = tomllib.load(f).get("sources", {})
+    return {cycle: url.rsplit("/", 1)[0] + "/" for cycle, url in sources.items()}
+
+
+CYCLE_STATS_PAGES = _cycle_stats_pages()
+# Shown in the footer so readers can tell how fresh the numbers are
+BUILD_DATE = datetime.now(timezone.utc).strftime("%B %-d, %Y")
+
+
+def _configure(env: Environment) -> Environment:
     env.filters["cycle_label"] = format_cycle
+    env.filters["cycle_stats_url"] = lambda cycle: CYCLE_STATS_PAGES.get(cycle)
+    # " (Institution)" for page metadata; empty when the affiliation is hidden
+    env.filters["affiliation_suffix"] = lambda inst: (
+        f" ({inst})" if inst and inst != HIDDEN_AFFILIATION else ""
+    )
     env.globals["asset_version"] = ASSET_VERSION
+    env.globals["build_date"] = BUILD_DATE
+    env.globals["latest_cycle"] = (
+        format_cycle(max(CYCLE_STATS_PAGES)) if CYCLE_STATS_PAGES else ""
+    )
+    return env
+
+
+def render(template: str, context: dict, out: Path) -> None:
+    env = _configure(
+        Environment(
+            loader=FileSystemLoader(str(TEMPLATES)),
+            autoescape=select_autoescape(["html", "xml"]),
+        )
+    )
     tmpl = env.get_template(template)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(tmpl.render(**context), encoding="utf-8")
@@ -74,13 +110,13 @@ def render_template_parallel(task_data: Tuple[str, Dict[str, Any], Path]) -> boo
 
     try:
         # Each process gets its own Jinja2 environment
-        env = Environment(
-            loader=FileSystemLoader(str(TEMPLATES)),
-            autoescape=select_autoescape(["html", "xml"]),
-            cache_size=500,
+        env = _configure(
+            Environment(
+                loader=FileSystemLoader(str(TEMPLATES)),
+                autoescape=select_autoescape(["html", "xml"]),
+                cache_size=500,
+            )
         )
-        env.filters["cycle_label"] = format_cycle
-        env.globals["asset_version"] = ASSET_VERSION
 
         template = env.get_template(template_name)
         content = template.render(**context)
@@ -162,6 +198,47 @@ def generate_pages_parallel(
     )
 
     return successful
+
+
+def write_institution_redirects(institution_db: dict) -> int:
+    """Keep old institution URLs working after spellings were merged.
+
+    Every spelling in ARR's data used to get its own page at the slug of that exact
+    spelling (or of its de-duplicated "X, X" form). When it now belongs to a merged
+    institution, its old URL forwards to the merged page.
+    """
+    from src.institution_utils import (
+        institution_name_to_url_safe_id,
+        slugify_institution,
+    )
+
+    targets: Dict[str, str] = {}
+    for cycle_file in Path("data/raw").glob("*.json"):
+        for row in json.loads(cycle_file.read_text(encoding="utf-8")):
+            raw = row.get("institution", "")
+            new_id = institution_name_to_url_safe_id(raw)
+            if new_id not in institution_db:
+                continue
+            doubled = re.match(r"^\s*(.+?)\s*,\s*\1\s*$", raw)
+            for old_id in {
+                slugify_institution(raw),
+                slugify_institution(doubled.group(1) if doubled else raw),
+            }:
+                if old_id and old_id != new_id and old_id not in institution_db:
+                    targets.setdefault(old_id, new_id)
+    for old_id, new_id in targets.items():
+        url = f"/institution/{new_id}/"
+        out = SITE / "institution" / old_id / "index.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            f'<meta http-equiv="refresh" content="0; url={url}">'
+            f'<link rel="canonical" href="{BASE_URL}{url}">'
+            f'<meta name="robots" content="noindex"><title>Moved</title></head>'
+            f'<body><p>This page moved to <a href="{url}">{url}</a>.</p></body></html>',
+            encoding="utf-8",
+        )
+    return len(targets)
 
 
 def generate_sitemap(
@@ -271,11 +348,45 @@ def build_site(
             institution_mappings_source, SITE / "data" / "institution_mappings.json"
         )
 
-    # Copy OpenReview profile mapping for JavaScript lookup
+    # Old URLs of institution spellings that are now merged
+    if institution_db_source.exists():
+        moved = write_institution_redirects(
+            json.loads(institution_db_source.read_text(encoding="utf-8"))
+        )
+        print(f"Wrote {moved} institution redirects")
+
+    # Copy OpenReview profile mapping for JavaScript lookup, minus opted-out reviewers
+    # and without the real affiliation of anyone who asked to hide it
     openreview_mapping_source = Path("data/openreview_profile_mapping.json")
     if openreview_mapping_source.exists():
-        shutil.copy2(
-            openreview_mapping_source, SITE / "data" / "openreview_profile_mapping.json"
+        mapping = json.loads(openreview_mapping_source.read_text(encoding="utf-8"))
+        excluded = load_excluded_reviewers()
+        if excluded:
+            for category in ("single_matches", "multiple_matches", "no_matches"):
+                entries = mapping.get(category, {})
+                for key in [
+                    k
+                    for k, v in entries.items()
+                    if excluded & set(v.get("openreview_profiles", []))
+                    or get_reviewer_openreview_id(*k.split("|", 1), mapping) in excluded
+                ]:
+                    del entries[key]
+        hidden = load_hidden_affiliations()
+        if hidden:
+            for category in ("single_matches", "multiple_matches", "no_matches"):
+                entries = mapping.get(category, {})
+                for key in [
+                    k
+                    for k, v in entries.items()
+                    if hidden & set(v.get("openreview_profiles", []))
+                ]:
+                    entry = entries.pop(key)
+                    entry["institution"] = HIDDEN_AFFILIATION
+                    entries[
+                        f"{entry.get('name', key.split('|', 1)[0])}|{HIDDEN_AFFILIATION}"
+                    ] = entry
+        (SITE / "data" / "openreview_profile_mapping.json").write_text(
+            json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
     # Load metrics for template rendering

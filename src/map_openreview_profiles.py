@@ -130,7 +130,10 @@ def get_access_token_from_env() -> Optional[str]:
     if raw:
         try:
             for item in _unwrap_cookies_list(json.loads(raw)):
-                if isinstance(item, dict) and item.get("name") == "openreview.accessToken":
+                if (
+                    isinstance(item, dict)
+                    and item.get("name") == "openreview.accessToken"
+                ):
                     _access_token = item.get("value")
                     return _access_token
         except json.JSONDecodeError:
@@ -343,7 +346,8 @@ def _refresh_mapping_metadata(results: Dict) -> None:
     for category in ("single_matches", "multiple_matches", "no_matches"):
         metadata[category] = len(results.get(category, {}))
     metadata["total_processed"] = sum(
-        metadata[category] for category in ("single_matches", "multiple_matches", "no_matches")
+        metadata[category]
+        for category in ("single_matches", "multiple_matches", "no_matches")
     )
 
 
@@ -421,11 +425,11 @@ def map_profiles(
             f"[red]✗{m['no_matches']}[/red]"
         )
 
-    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool, _make_progress() as progress:
-        futures = [
-            pool.submit(_classify_reviewer, reviewer)
-            for reviewer in reviewers
-        ]
+    with (
+        ThreadPoolExecutor(max_workers=max(1, workers)) as pool,
+        _make_progress() as progress,
+    ):
+        futures = [pool.submit(_classify_reviewer, reviewer) for reviewer in reviewers]
         task_id = progress.add_task(_desc(), total=len(futures))
         for future in as_completed(futures):
             classified = future.result()
@@ -549,9 +553,7 @@ def reprocess_no_matches(
     else:
         target_items = no_matches_copy
 
-    console.print(
-        f"[blue]Reprocessing {len(target_items)} unmatched entries...[/blue]"
-    )
+    console.print(f"[blue]Reprocessing {len(target_items)} unmatched entries...[/blue]")
 
     # Warm module-level caches before spawning workers.
     get_requests_session()
@@ -571,7 +573,10 @@ def reprocess_no_matches(
             f"[red]✗{run_counts['still_none']}[/red]"
         )
 
-    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool, _make_progress() as progress:
+    with (
+        ThreadPoolExecutor(max_workers=max(1, workers)) as pool,
+        _make_progress() as progress,
+    ):
         futures = [pool.submit(_lookup, item) for item in target_items.items()]
         task_id = progress.add_task(_desc(), total=len(futures))
         for future in as_completed(futures):

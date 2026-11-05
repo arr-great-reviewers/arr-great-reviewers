@@ -83,6 +83,68 @@ If automatic lookup finds multiple candidate profiles, the candidates remain in
 `multiple_matches` as evidence but no profile ID is used until a manual mapping resolves
 the ambiguity.
 
+### Reviewer contact details
+
+- **`make contacts`** - Collect contact candidates for the top 100 reviewers overall (`--top-n` changes the cutoff)
+
+For each reviewer the collector fetches the OpenReview profile in one batched,
+authenticated request (same cookies as above) and crawls the listed homepage —
+including same-site JS bundles and a few contact-like pages, and decoding Cloudflare and
+shifted-`mailto:` obfuscation. Reviewers still without a domain-confirmed address then
+get the first pages of up to 25 recent papers from their ACL Anthology author page read,
+and finally up to 15 recent arXiv papers found by author name (throttled to one request
+every 3 seconds).
+
+Paper headers list every co-author, so a paper address is kept only if it clearly
+resembles one of the reviewer's OpenReview names (`ido.dagan`, `nbalepur`), or if it is
+an initials-style username (`th656`, `nv2006`, `cli`) on an institutional domain from
+their OpenReview profile. arXiv name searches return namesakes, so arXiv addresses must
+be domain-confirmed.
+
+Each candidate is scored against the masked email domains OpenReview shows
+(`****@cmu.edu`): `high` means an institutional domain from the profile matches, or a
+gmail-style domain from the profile plus a name match; `medium` means only the name
+matches. Addresses that only the layout of a paper can attribute go in
+`data/contacts/manual_contacts.toml` (keyed by OpenReview id, with `email`, `source`,
+`note`); they override automatic results and are marked `manual`.
+
+The result is written to `data/contacts/top100_contacts.{csv,json}`. Everything under
+`data/contacts/` is gitignored and contains personal data: check every row by hand
+before sending anything, and delete the files when you are done.
+
+### Removing a reviewer
+
+Reviewers who ask to be removed are listed by OpenReview ID in the
+`EXCLUDED_REVIEWERS` environment variable (separated by commas, spaces or newlines).
+`src/arr_dl.py` drops their rows from the downloaded ARR data, so they disappear from
+every page, ranking and institution total, and from the data files copied to the site.
+
+In CI the variable comes from the `EXCLUDED_REVIEWERS` GitHub Actions secret, so the
+repository never lists who opted out. To remove someone, add their ID to the secret
+(Settings → Secrets and variables → Actions) and re-run the deploy workflow. For a
+local build:
+
+```bash
+EXCLUDED_REVIEWERS="~Jane_Doe1" make build
+```
+
+Rows only match when the reviewer's name and institution map to their OpenReview ID,
+so check that the mapping exists (`make map-openreview-check`) before relying on it.
+
+### Hiding a reviewer's affiliation
+
+Reviewers who want to stay listed but without their affiliation go in the
+`HIDDEN_AFFILIATIONS` environment variable (OpenReview IDs, same format as above; in
+CI the `HIDDEN_AFFILIATIONS` GitHub Actions secret). `src/arr_dl.py` replaces their
+affiliation with "Affiliation not shown" at download, after the OpenReview lookup, so
+their profile, ranking rows and the data files on the site never contain it. Their
+Great Reviews no longer count toward the old institution, and the placeholder is kept
+out of institution rankings. ARR's own statistics pages still show the original.
+
+```bash
+HIDDEN_AFFILIATIONS="~Jane_Doe1" make build
+```
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages
@@ -106,6 +168,23 @@ Maps ARR cycle names to their JSON data source URLs from the ACL Rolling Review 
 ```
 
 **Usage:** The `src/arr_dl.py` module reads this file to download data for each configured ARR cycle. Add new cycles by adding entries with the cycle name as key and the corresponding stats URL as value.
+
+### `config/institution_aliases.toml`
+
+ARR's data spells some institutions several ways. Spellings that differ only in case,
+punctuation, accents, a leading "The", or an exact repeat ("X, X") are merged
+automatically. Other spellings of the same place ("Microsoft, USA", "University of
+Stuttgart, Universität Stuttgart") are listed here by hand:
+
+```toml
+[aliases]
+"Microsoft, USA" = "Microsoft"
+```
+
+Each merged institution is shown under its spelling with the most Great Reviews, and
+its page keeps that spelling's URL. Old URLs of the absorbed spellings redirect to it.
+Separate campuses and similarly named but different institutions are deliberately not
+listed (see the comments in the file).
 
 ### `config/manual_openreview_mappings.toml`
 

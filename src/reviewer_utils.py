@@ -1,15 +1,102 @@
 """Utilities for reviewer identification and data processing."""
 
 import json
+import os
+import re
 import tomllib
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, FrozenSet, Optional
 
 _MONTHS = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
+
+_DOUBLED_NAME_RE = re.compile(r"^\s*(.+?)\s*,\s*\1\s*$")
+_EDGE_PUNCT_RE = re.compile(r"^[\s,;.\-–]+|[\s,;\-–]+$")
+
+
+def _clean_institution(name: str) -> str:
+    """Tidy one spelling: whitespace, stray edge punctuation, and exact repeats
+    ("Tsinghua University, Tsinghua University")."""
+    name = _EDGE_PUNCT_RE.sub("", " ".join((name or "").split()))
+    match = _DOUBLED_NAME_RE.match(name)
+    return match.group(1) if match else name
+
+
+def institution_key(name: str) -> str:
+    """Comparison key: ignores case, punctuation, accents and a leading "The"."""
+    folded = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    folded = re.sub(r"[^a-z0-9]+", " ", folded.lower()).strip()
+    return re.sub(r"^the ", "", folded)
+
+
+@lru_cache(maxsize=1)
+def _institution_aliases() -> Dict[str, str]:
+    """Hand-checked spellings of the same place (config/institution_aliases.toml)."""
+    path = Path("config/institution_aliases.toml")
+    if not path.exists():
+        return {}
+    aliases = tomllib.loads(path.read_text(encoding="utf-8")).get("aliases", {})
+    return {institution_key(k): v for k, v in aliases.items()}
+
+
+def _resolve_institution(name: str) -> str:
+    cleaned = _clean_institution(name)
+    alias = _institution_aliases().get(institution_key(cleaned))
+    return _clean_institution(alias) if alias else cleaned
+
+
+@lru_cache(maxsize=1)
+def _display_name_by_key() -> Dict[str, str]:
+    """For every group of spellings, the one with the most Great Reviews in ARR's data
+    (ties: more rows, then without a leading "The", then alphabetical)."""
+    tallies: Dict[str, Dict[str, list]] = {}
+    for cycle_file in Path("data/raw").glob("*.json"):
+        with open(cycle_file, "r", encoding="utf-8") as f:
+            for row in json.load(f):
+                spelling = _resolve_institution(row.get("institution", ""))
+                tally = tallies.setdefault(institution_key(spelling), {}).setdefault(
+                    spelling, [0, 0]
+                )
+                tally[0] += int(row.get("recognized", 0) or 0)
+                tally[1] += 1
+    return {
+        key: max(
+            spellings.items(),
+            key=lambda kv: (
+                kv[1][0],
+                kv[1][1],
+                not kv[0].lower().startswith("the "),
+                kv[0],
+            ),
+        )[0]
+        for key, spellings in tallies.items()
+    }
+
+
+def canonical_institution(name: str) -> str:
+    """The single display name for an institution, however ARR's data spells it.
+
+    Spellings that differ only in case, punctuation, accents or a leading "The", plus
+    the hand-checked aliases, share one name: the spelling with the most Great Reviews.
+    "X, Y" is otherwise left alone, since Y is often a parent university
+    ("Department of Computer Science, University of Washington").
+    """
+    resolved = _resolve_institution(name)
+    return _display_name_by_key().get(institution_key(resolved), resolved)
 
 
 def format_cycle(cycle: str) -> str:
@@ -18,7 +105,6 @@ def format_cycle(cycle: str) -> str:
     if not (year.isdigit() and month.isdigit() and 1 <= int(month) <= 12):
         return cycle
     return f"{_MONTHS[int(month) - 1]} {year}"
-
 
 
 def get_reviewer_unique_id(
@@ -107,6 +193,11 @@ def get_reviewer_openreview_id(
     Returns:
         The OpenReview profile ID if found, None otherwise
     """
+    if institution == HIDDEN_AFFILIATION:
+        # Rows whose affiliation was hidden at download: resolve by name, but only
+        # among the people who asked for it.
+        return _hidden_affiliation_ids_by_name(mappings).get(name)
+
     key = f"{name}|{institution}"
 
     # Check manual mappings first (highest priority)
@@ -123,6 +214,71 @@ def get_reviewer_openreview_id(
     # Resolve these through a manual mapping before including them.
 
     return None
+
+
+@lru_cache(maxsize=1)
+def load_excluded_reviewers() -> FrozenSet[str]:
+    """OpenReview IDs of reviewers who asked to be removed from the site.
+
+    Read from the EXCLUDED_REVIEWERS environment variable (IDs separated by commas,
+    spaces or newlines). CI fills it from a GitHub Actions secret, so the repository
+    never lists who opted out.
+    """
+    raw = os.getenv("EXCLUDED_REVIEWERS", "")
+    return frozenset(i for i in re.split(r"[\s,]+", raw) if i)
+
+
+def is_excluded_reviewer(
+    name: str, institution: str, mappings: Dict[str, Dict]
+) -> bool:
+    """Whether this raw ARR row belongs to an excluded reviewer."""
+    excluded = load_excluded_reviewers()
+    return (
+        bool(excluded)
+        and get_reviewer_openreview_id(name, institution, mappings) in excluded
+    )
+
+
+HIDDEN_AFFILIATION = "Affiliation not shown"
+
+
+@lru_cache(maxsize=1)
+def load_hidden_affiliations() -> FrozenSet[str]:
+    """OpenReview IDs of reviewers who asked for their affiliation not to be shown.
+
+    Read from the HIDDEN_AFFILIATIONS environment variable (IDs separated by commas,
+    spaces or newlines), filled from a GitHub Actions secret in CI.
+    """
+    raw = os.getenv("HIDDEN_AFFILIATIONS", "")
+    return frozenset(i for i in re.split(r"[\s,]+", raw) if i)
+
+
+_HIDDEN_BY_NAME: Optional[Dict[str, str]] = None
+
+
+def _hidden_affiliation_ids_by_name(mappings: Dict[str, Dict]) -> Dict[str, str]:
+    global _HIDDEN_BY_NAME
+    if _HIDDEN_BY_NAME is None:
+        hidden = load_hidden_affiliations()
+        index: Dict[str, str] = {}
+        candidates = list(load_manual_mappings().items()) + [
+            (key, (entry.get("openreview_profiles") or [None])[0])
+            for key, entry in mappings.get("single_matches", {}).items()
+        ]
+        for key, openreview_id in candidates:
+            if openreview_id in hidden:
+                index[key.split("|", 1)[0]] = openreview_id
+        _HIDDEN_BY_NAME = index
+    return _HIDDEN_BY_NAME
+
+
+def hides_affiliation(name: str, institution: str, mappings: Dict[str, Dict]) -> bool:
+    """Whether this raw ARR row belongs to someone whose affiliation is hidden."""
+    hidden = load_hidden_affiliations()
+    return (
+        bool(hidden)
+        and get_reviewer_openreview_id(name, institution, mappings) in hidden
+    )
 
 
 def build_reviewer_database() -> Dict[str, Dict]:
@@ -150,8 +306,9 @@ def build_reviewer_database() -> Dict[str, Dict]:
             institution = reviewer["institution"]
             openreview_id = get_reviewer_openreview_id(name, institution, mappings)
 
-            # Only include reviewers with actual OpenReview IDs
-            if not openreview_id:
+            # Only include reviewers with actual OpenReview IDs (and not opted out;
+            # this file can predate the exclusion when metrics are stale)
+            if not openreview_id or openreview_id in load_excluded_reviewers():
                 continue
 
             reviewer_db[openreview_id] = {
@@ -186,7 +343,7 @@ def build_reviewer_database() -> Dict[str, Dict]:
             if openreview_id not in reviewer_db:
                 reviewer_db[openreview_id] = {
                     "name": name,
-                    "institution": institution,
+                    "institution": canonical_institution(institution),
                     "openreview_id": openreview_id,
                     "unique_id": openreview_id,
                     "total_recognized": 0,
@@ -199,13 +356,19 @@ def build_reviewer_database() -> Dict[str, Dict]:
                 # Update name and institution to most recent version
                 # (cycles are processed in chronological order)
                 reviewer_db[openreview_id]["name"] = name
-                reviewer_db[openreview_id]["institution"] = institution
+                reviewer_db[openreview_id]["institution"] = canonical_institution(
+                    institution
+                )
 
             # Every name|institution pair this reviewer appeared under, so per-cycle
             # tables can still link rows that use an older name or affiliation.
             keys = reviewer_db[openreview_id].setdefault("source_keys", [])
-            if f"{name}|{institution}" not in keys:
-                keys.append(f"{name}|{institution}")
+            for key in (
+                f"{name}|{institution}",
+                f"{name}|{canonical_institution(institution)}",
+            ):
+                if key not in keys:
+                    keys.append(key)
 
             # Add cycle-specific data
             reviewer_db[openreview_id]["cycles"][cycle_name] = {
@@ -363,7 +526,7 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
             # Resolve through the OpenReview mapping so reviewers who changed
             # affiliation still get badges for their earlier cycles.
             unique_id = get_reviewer_openreview_id(
-                reviewer_data["name"], reviewer_data["institution"], mappings
+                reviewer_data["name"], reviewer_data["source_institution"], mappings
             )
             if unique_id not in reviewer_db:
                 continue
@@ -462,7 +625,9 @@ def process_and_rank_cycle_data(raw_data: list) -> list:
     for reviewer in raw_data:
         processed_reviewer = {
             "name": reviewer.get("name", ""),
-            "institution": reviewer.get("institution", ""),
+            "institution": canonical_institution(reviewer.get("institution", "")),
+            # ARR's own spelling, needed for the OpenReview lookup; not published
+            "source_institution": reviewer.get("institution", ""),
             "reviewed": int(reviewer.get("reviewed", 0)),
             "recognized": int(reviewer.get("recognized", 0)),
             "percentage": float(reviewer.get("percentage", 0.0)),
@@ -515,7 +680,15 @@ def generate_cycle_reviewer_files() -> None:
         # Save to cycle-specific file
         output_file = metrics_dir / f"reviewers_{cycle_name}.json"
         with output_file.open("w", encoding="utf-8") as f:
-            json.dump(processed_data, f, ensure_ascii=False, indent=2)
+            json.dump(
+                [
+                    {k: v for k, v in row.items() if k != "source_institution"}
+                    for row in processed_data
+                ],
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
 
         print(f"  Generated {output_file} with {len(processed_data)} reviewers")
 

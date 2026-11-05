@@ -5,24 +5,22 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from src.reviewer_utils import format_cycle
+from src.reviewer_utils import canonical_institution, format_cycle
+
+
+def slugify_institution(institution_name: str) -> str:
+    """URL slug of one exact spelling (the historical page-ID scheme)."""
+    url_safe = re.sub(r"[^a-zA-Z0-9]+", "-", institution_name.lower())
+    return re.sub(r"-+", "-", url_safe).strip("-")
 
 
 def institution_name_to_url_safe_id(institution_name: str) -> str:
-    """
-    Convert institution name to URL-safe identifier.
+    """Page ID for an institution, the same for every spelling of it.
 
-    Args:
-        institution_name: The institution's full name
-
-    Returns:
-        URL-safe identifier for the institution
+    The slug of the group's display name, so institutions that were never merged keep
+    the URL they always had.
     """
-    # Convert to lowercase and replace spaces/special characters with hyphens
-    url_safe = re.sub(r"[^a-zA-Z0-9]+", "-", institution_name.lower())
-    # Remove leading/trailing hyphens and multiple consecutive hyphens
-    url_safe = re.sub(r"-+", "-", url_safe).strip("-")
-    return url_safe
+    return slugify_institution(canonical_institution(institution_name))
 
 
 def load_institution_mappings() -> Dict[str, str]:
@@ -47,6 +45,18 @@ def load_institution_mappings() -> Dict[str, str]:
             inst_name = inst["institution"]
             url_safe_id = institution_name_to_url_safe_id(inst_name)
             mappings[inst_name] = url_safe_id
+
+    # Raw ARR spellings ("X, X") still appear in per-cycle tables; point them at
+    # the merged page too.
+    for cycle_file in Path("data/raw").glob("*.json"):
+        with open(cycle_file, "r", encoding="utf-8") as f:
+            for row in json.load(f):
+                raw = row.get("institution", "")
+                if (
+                    raw != canonical_institution(raw)
+                    and canonical_institution(raw) in mappings
+                ):
+                    mappings.setdefault(raw, mappings[canonical_institution(raw)])
 
     return mappings
 
@@ -127,7 +137,7 @@ def build_institution_database() -> Dict[str, Dict]:
             }
 
             for reviewer in cycle_reviewers:
-                if reviewer["institution"] in all_inst_names:
+                if canonical_institution(reviewer["institution"]) in all_inst_names:
                     cycle_inst_data["recognized"] += int(reviewer.get("recognized", 0))
                     cycle_inst_data["reviewed"] += int(reviewer.get("reviewed", 0))
                     cycle_inst_data["reviewer_count"] += 1

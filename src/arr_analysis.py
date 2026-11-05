@@ -8,6 +8,8 @@ import pandas as pd
 from rich import print
 
 from src.reviewer_utils import (
+    HIDDEN_AFFILIATION,
+    canonical_institution,
     get_reviewer_openreview_id,
     load_institution_overrides,
     load_reviewer_mappings,
@@ -34,6 +36,8 @@ def load_data() -> pd.DataFrame:
             ),
             axis=1,
         )
+        # After the OpenReview lookup, whose keys use the raw affiliation
+        df["institution"] = df["institution"].map(canonical_institution)
 
         frames.append(df)
     if not frames:
@@ -142,9 +146,12 @@ def build_metrics(df: pd.DataFrame) -> None:
         METRIC_DIR / "top_people_percentage.json", orient="records", indent=2
     )
 
+    # Hidden affiliations share one placeholder label; it is not an institution
+    df_inst = df[df["institution"] != HIDDEN_AFFILIATION]
+
     # Institutions by absolute count - tie-breaking by recognition rate, then by total reviews
     inst_abs = (
-        df.groupby("institution", as_index=False)
+        df_inst.groupby("institution", as_index=False)
         .agg({"recognized": "sum", "reviewed": "sum", "name": "nunique"})
         .rename(columns={"name": "reviewer_count"})
         .assign(
@@ -161,7 +168,7 @@ def build_metrics(df: pd.DataFrame) -> None:
 
     # Institutions by percentage - tie-breaking by recognized count, then by total reviews
     inst_pct = (
-        df.assign(weight=df["reviewed"])
+        df_inst.assign(weight=df_inst["reviewed"])
         .groupby("institution")
         .apply(
             lambda g: pd.Series(
@@ -194,7 +201,7 @@ def build_metrics(df: pd.DataFrame) -> None:
     misc = {
         "gini_recognized": gini(df["recognized"].to_numpy()),
         "herfindahl_institutions": float(
-            np.square(df.groupby("institution")["recognized"].sum()).sum()
+            np.square(df_inst.groupby("institution")["recognized"].sum()).sum()
             / float(df["recognized"].sum() ** 2)
         ),
     }

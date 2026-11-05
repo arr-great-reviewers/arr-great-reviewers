@@ -2,27 +2,27 @@
 
 {% block title %}{{ reviewer.name }} - ARR Great Reviewers{% endblock %}
 
-{% block description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
+{% block description %}{{ reviewer.name }}{{ reviewer.institution|affiliation_suffix }} didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 
-{% block keywords %}{{ reviewer.name }}, {{ reviewer.institution }}, ACL Rolling Review, peer reviewer profile, academic reviewer, NLP reviewer, computational linguistics, great reviews{% endblock %}
+{% block keywords %}{{ reviewer.name }}, {% if reviewer.institution|affiliation_suffix %}{{ reviewer.institution }}, {% endif %}ACL Rolling Review, peer reviewer profile, academic reviewer, NLP reviewer, computational linguistics, great reviews{% endblock %}
 
 {% block og_title %}{{ reviewer.name }} - ARR Great Reviewers{% endblock %}
-{% block og_description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
+{% block og_description %}{{ reviewer.name }}{{ reviewer.institution|affiliation_suffix }} didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 {% block og_type %}profile{% endblock %}
 
 {% block twitter_title %}{{ reviewer.name }} - ARR Great Reviewers{% endblock %}
-{% block twitter_description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
+{% block twitter_description %}{{ reviewer.name }}{{ reviewer.institution|affiliation_suffix }} didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 
 {% block schema_type %}Person{% endblock %}
 {% block schema_name %}{{ reviewer.name }}{% endblock %}
-{% block schema_description %}{{ reviewer.name }} ({{ reviewer.institution }}) didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
+{% block schema_description %}{{ reviewer.name }}{{ reviewer.institution|affiliation_suffix }} didn't just submit reviews — they actually read the paper. {{ reviewer.total_recognized }} great reviews, {{ "%.1f"|format(reviewer.recognition_rate * 100) }}% recognition rate in ARR.{% endblock %}
 {% block schema_additional %},
     "givenName": "{{ reviewer.name.split(' ')[0] if reviewer.name }}",
     "familyName": "{{ reviewer.name.split(' ')[-1] if reviewer.name and reviewer.name.split(' ')|length > 1 }}",
-    "affiliation": {
+    {% if reviewer.institution|affiliation_suffix %}"affiliation": {
       "@type": "Organization",
       "name": "{{ reviewer.institution }}"
-    },
+    },{% endif %}
     "knowsAbout": ["Peer Review", "Academic Publishing", "Natural Language Processing", "Computational Linguistics"],
     "hasOccupation": {
       "@type": "Occupation",
@@ -123,7 +123,10 @@
           {% for cycle_name, cycle_data in reviewer.cycles.items() %}
           {% set rate = (cycle_data.recognized / cycle_data.reviewed * 100) if cycle_data.reviewed else 0 %}
           <tr>
-            <th scope="row"><a href="/reviewers/{{ cycle_name }}/">{{ cycle_name|cycle_label }}</a></th>
+            <th scope="row">
+              <a href="/reviewers/{{ cycle_name }}/">{{ cycle_name|cycle_label }}</a>
+              {% if cycle_name|cycle_stats_url %}<a class="arr-source" href="{{ cycle_name|cycle_stats_url }}" target="_blank" rel="noopener" title="See this cycle on ARR's own statistics page">ARR&nbsp;↗</a>{% endif %}
+            </th>
             <td class="num">{{ cycle_data.recognized }}</td>
             <td class="num">{{ cycle_data.reviewed }}</td>
             <td class="rate-col">

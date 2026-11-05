@@ -15,6 +15,11 @@ jobs:
       with: {python-version: '3.12'}
     - run: pipx install uv
     - run: make build
+      env:
+        # OpenReview IDs of reviewers who asked to be removed; kept out of the repo.
+        EXCLUDED_REVIEWERS: ${{ secrets.EXCLUDED_REVIEWERS }}
+        # OpenReview IDs of reviewers whose affiliation should not be shown.
+        HIDDEN_AFFILIATIONS: ${{ secrets.HIDDEN_AFFILIATIONS }}
     - uses: actions/upload-pages-artifact@v3
       with: {path: site}
     - uses: actions/deploy-pages@v4

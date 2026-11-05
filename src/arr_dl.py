@@ -8,6 +8,13 @@ from typing import Dict
 import requests
 from rich.progress import track
 
+from src.reviewer_utils import (
+    HIDDEN_AFFILIATION,
+    hides_affiliation,
+    is_excluded_reviewer,
+    load_reviewer_mappings,
+)
+
 SAMPLE = {
     "name": "Mao Qianren",
     "institution": "Zhongguancun Laboratory, Beijing, P.R.China.",
@@ -42,6 +49,17 @@ def fetch(name: str, url: str) -> None:
             for key in SAMPLE:
                 if key not in entry:
                     raise ValueError(f"Missing {key} in {name}")
+        # Drop opted-out reviewers and blank hidden affiliations here, before
+        # anything downstream (metrics, the raw JSON copied to the site) can see them.
+        mappings = load_reviewer_mappings()
+        data = [
+            e
+            for e in data
+            if not is_excluded_reviewer(e["name"], e["institution"], mappings)
+        ]
+        for e in data:
+            if hides_affiliation(e["name"], e["institution"], mappings):
+                e["institution"] = HIDDEN_AFFILIATION
         out = DATA_DIR / f"{name}.json"
         with out.open("w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
