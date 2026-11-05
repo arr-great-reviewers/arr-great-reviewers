@@ -132,6 +132,11 @@ def get_reviewer_openreview_id(
     Returns:
         The OpenReview profile ID if found, None otherwise
     """
+    if institution == HIDDEN_AFFILIATION:
+        # Rows whose affiliation was hidden at download: resolve by name, but only
+        # among the people who asked for it.
+        return _hidden_affiliation_ids_by_name(mappings).get(name)
+
     key = f"{name}|{institution}"
 
     # Check manual mappings first (highest priority)
@@ -170,6 +175,48 @@ def is_excluded_reviewer(
     return (
         bool(excluded)
         and get_reviewer_openreview_id(name, institution, mappings) in excluded
+    )
+
+
+HIDDEN_AFFILIATION = "Affiliation not shown"
+
+
+@lru_cache(maxsize=1)
+def load_hidden_affiliations() -> FrozenSet[str]:
+    """OpenReview IDs of reviewers who asked for their affiliation not to be shown.
+
+    Read from the HIDDEN_AFFILIATIONS environment variable (IDs separated by commas,
+    spaces or newlines), filled from a GitHub Actions secret in CI.
+    """
+    raw = os.getenv("HIDDEN_AFFILIATIONS", "")
+    return frozenset(i for i in re.split(r"[\s,]+", raw) if i)
+
+
+_HIDDEN_BY_NAME: Optional[Dict[str, str]] = None
+
+
+def _hidden_affiliation_ids_by_name(mappings: Dict[str, Dict]) -> Dict[str, str]:
+    global _HIDDEN_BY_NAME
+    if _HIDDEN_BY_NAME is None:
+        hidden = load_hidden_affiliations()
+        index: Dict[str, str] = {}
+        candidates = list(load_manual_mappings().items()) + [
+            (key, (entry.get("openreview_profiles") or [None])[0])
+            for key, entry in mappings.get("single_matches", {}).items()
+        ]
+        for key, openreview_id in candidates:
+            if openreview_id in hidden:
+                index[key.split("|", 1)[0]] = openreview_id
+        _HIDDEN_BY_NAME = index
+    return _HIDDEN_BY_NAME
+
+
+def hides_affiliation(name: str, institution: str, mappings: Dict[str, Dict]) -> bool:
+    """Whether this raw ARR row belongs to someone whose affiliation is hidden."""
+    hidden = load_hidden_affiliations()
+    return (
+        bool(hidden)
+        and get_reviewer_openreview_id(name, institution, mappings) in hidden
     )
 
 

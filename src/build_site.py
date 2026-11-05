@@ -38,9 +38,11 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from src.reviewer_utils import (
+    HIDDEN_AFFILIATION,
     format_cycle,
     get_reviewer_openreview_id,
     load_excluded_reviewers,
+    load_hidden_affiliations,
 )
 
 TEMPLATES = Path("templates")
@@ -77,6 +79,10 @@ BUILD_DATE = datetime.now(timezone.utc).strftime("%B %-d, %Y")
 def _configure(env: Environment) -> Environment:
     env.filters["cycle_label"] = format_cycle
     env.filters["cycle_stats_url"] = lambda cycle: CYCLE_STATS_PAGES.get(cycle)
+    # " (Institution)" for page metadata; empty when the affiliation is hidden
+    env.filters["affiliation_suffix"] = lambda inst: (
+        f" ({inst})" if inst and inst != HIDDEN_AFFILIATION else ""
+    )
     env.globals["asset_version"] = ASSET_VERSION
     env.globals["build_date"] = BUILD_DATE
     env.globals["latest_cycle"] = (
@@ -301,6 +307,7 @@ def build_site(
         )
 
     # Copy OpenReview profile mapping for JavaScript lookup, minus opted-out reviewers
+    # and without the real affiliation of anyone who asked to hide it
     openreview_mapping_source = Path("data/openreview_profile_mapping.json")
     if openreview_mapping_source.exists():
         mapping = json.loads(openreview_mapping_source.read_text(encoding="utf-8"))
@@ -315,6 +322,20 @@ def build_site(
                     or get_reviewer_openreview_id(*k.split("|", 1), mapping) in excluded
                 ]:
                     del entries[key]
+        hidden = load_hidden_affiliations()
+        if hidden:
+            for category in ("single_matches", "multiple_matches", "no_matches"):
+                entries = mapping.get(category, {})
+                for key in [
+                    k
+                    for k, v in entries.items()
+                    if hidden & set(v.get("openreview_profiles", []))
+                ]:
+                    entry = entries.pop(key)
+                    entry["institution"] = HIDDEN_AFFILIATION
+                    entries[
+                        f"{entry.get('name', key.split('|', 1)[0])}|{HIDDEN_AFFILIATION}"
+                    ] = entry
         (SITE / "data" / "openreview_profile_mapping.json").write_text(
             json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8"
         )

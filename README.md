@@ -131,6 +131,20 @@ EXCLUDED_REVIEWERS="~Jane_Doe1" make build
 Rows only match when the reviewer's name and institution map to their OpenReview ID,
 so check that the mapping exists (`make map-openreview-check`) before relying on it.
 
+### Hiding a reviewer's affiliation
+
+Reviewers who want to stay listed but without their affiliation go in the
+`HIDDEN_AFFILIATIONS` environment variable (OpenReview IDs, same format as above; in
+CI the `HIDDEN_AFFILIATIONS` GitHub Actions secret). `src/arr_dl.py` replaces their
+affiliation with "Affiliation not shown" at download, after the OpenReview lookup, so
+their profile, ranking rows and the data files on the site never contain it. Their
+Great Reviews no longer count toward the old institution, and the placeholder is kept
+out of institution rankings. ARR's own statistics pages still show the original.
+
+```bash
+HIDDEN_AFFILIATIONS="~Jane_Doe1" make build
+```
+
 ### Performance comparison
 
 - **Full build** (`make build`): Generates all pages including ~2000+ individual reviewer pages
