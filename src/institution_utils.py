@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from src.reviewer_utils import format_cycle
+from src.reviewer_utils import canonical_institution, format_cycle
 
 
 def institution_name_to_url_safe_id(institution_name: str) -> str:
@@ -18,6 +18,8 @@ def institution_name_to_url_safe_id(institution_name: str) -> str:
     Returns:
         URL-safe identifier for the institution
     """
+    # Doubled names ("X, X") share X's page
+    institution_name = canonical_institution(institution_name)
     # Convert to lowercase and replace spaces/special characters with hyphens
     url_safe = re.sub(r"[^a-zA-Z0-9]+", "-", institution_name.lower())
     # Remove leading/trailing hyphens and multiple consecutive hyphens
@@ -47,6 +49,18 @@ def load_institution_mappings() -> Dict[str, str]:
             inst_name = inst["institution"]
             url_safe_id = institution_name_to_url_safe_id(inst_name)
             mappings[inst_name] = url_safe_id
+
+    # Raw ARR spellings ("X, X") still appear in per-cycle tables; point them at
+    # the merged page too.
+    for cycle_file in Path("data/raw").glob("*.json"):
+        with open(cycle_file, "r", encoding="utf-8") as f:
+            for row in json.load(f):
+                raw = row.get("institution", "")
+                if (
+                    raw != canonical_institution(raw)
+                    and canonical_institution(raw) in mappings
+                ):
+                    mappings.setdefault(raw, mappings[canonical_institution(raw)])
 
     return mappings
 
@@ -127,7 +141,7 @@ def build_institution_database() -> Dict[str, Dict]:
             }
 
             for reviewer in cycle_reviewers:
-                if reviewer["institution"] in all_inst_names:
+                if canonical_institution(reviewer["institution"]) in all_inst_names:
                     cycle_inst_data["recognized"] += int(reviewer.get("recognized", 0))
                     cycle_inst_data["reviewed"] += int(reviewer.get("reviewed", 0))
                     cycle_inst_data["reviewer_count"] += 1

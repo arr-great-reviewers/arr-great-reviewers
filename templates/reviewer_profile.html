@@ -123,7 +123,10 @@
           {% for cycle_name, cycle_data in reviewer.cycles.items() %}
           {% set rate = (cycle_data.recognized / cycle_data.reviewed * 100) if cycle_data.reviewed else 0 %}
           <tr>
-            <th scope="row"><a href="/reviewers/{{ cycle_name }}/">{{ cycle_name|cycle_label }}</a></th>
+            <th scope="row">
+              <a href="/reviewers/{{ cycle_name }}/">{{ cycle_name|cycle_label }}</a>
+              {% if cycle_name|cycle_stats_url %}<a class="arr-source" href="{{ cycle_name|cycle_stats_url }}" target="_blank" rel="noopener" title="See this cycle on ARR's own statistics page">ARR&nbsp;↗</a>{% endif %}
+            </th>
             <td class="num">{{ cycle_data.recognized }}</td>
             <td class="num">{{ cycle_data.reviewed }}</td>
             <td class="rate-col">

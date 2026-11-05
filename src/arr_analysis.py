@@ -8,6 +8,7 @@ import pandas as pd
 from rich import print
 
 from src.reviewer_utils import (
+    canonical_institution,
     get_reviewer_openreview_id,
     load_institution_overrides,
     load_reviewer_mappings,
@@ -34,6 +35,8 @@ def load_data() -> pd.DataFrame:
             ),
             axis=1,
         )
+        # After the OpenReview lookup, whose keys use the raw affiliation
+        df["institution"] = df["institution"].map(canonical_institution)
 
         frames.append(df)
     if not frames:

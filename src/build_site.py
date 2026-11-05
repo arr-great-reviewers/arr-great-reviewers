@@ -60,13 +60,38 @@ def _asset_version() -> str:
 ASSET_VERSION = _asset_version()
 
 
-def render(template: str, context: dict, out: Path) -> None:
-    env = Environment(
-        loader=FileSystemLoader(str(TEMPLATES)),
-        autoescape=select_autoescape(["html", "xml"]),
-    )
+def _cycle_stats_pages() -> Dict[str, str]:
+    """ARR's public stats page for each cycle, from the JSON URLs we download."""
+    import tomllib
+
+    with open("config/data_sources.toml", "rb") as f:
+        sources = tomllib.load(f).get("sources", {})
+    return {cycle: url.rsplit("/", 1)[0] + "/" for cycle, url in sources.items()}
+
+
+CYCLE_STATS_PAGES = _cycle_stats_pages()
+# Shown in the footer so readers can tell how fresh the numbers are
+BUILD_DATE = datetime.now(timezone.utc).strftime("%B %-d, %Y")
+
+
+def _configure(env: Environment) -> Environment:
     env.filters["cycle_label"] = format_cycle
+    env.filters["cycle_stats_url"] = lambda cycle: CYCLE_STATS_PAGES.get(cycle)
     env.globals["asset_version"] = ASSET_VERSION
+    env.globals["build_date"] = BUILD_DATE
+    env.globals["latest_cycle"] = (
+        format_cycle(max(CYCLE_STATS_PAGES)) if CYCLE_STATS_PAGES else ""
+    )
+    return env
+
+
+def render(template: str, context: dict, out: Path) -> None:
+    env = _configure(
+        Environment(
+            loader=FileSystemLoader(str(TEMPLATES)),
+            autoescape=select_autoescape(["html", "xml"]),
+        )
+    )
     tmpl = env.get_template(template)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(tmpl.render(**context), encoding="utf-8")
@@ -78,13 +103,13 @@ def render_template_parallel(task_data: Tuple[str, Dict[str, Any], Path]) -> boo
 
     try:
         # Each process gets its own Jinja2 environment
-        env = Environment(
-            loader=FileSystemLoader(str(TEMPLATES)),
-            autoescape=select_autoescape(["html", "xml"]),
-            cache_size=500,
+        env = _configure(
+            Environment(
+                loader=FileSystemLoader(str(TEMPLATES)),
+                autoescape=select_autoescape(["html", "xml"]),
+                cache_size=500,
+            )
         )
-        env.filters["cycle_label"] = format_cycle
-        env.globals["asset_version"] = ASSET_VERSION
 
         template = env.get_template(template_name)
         content = template.render(**context)

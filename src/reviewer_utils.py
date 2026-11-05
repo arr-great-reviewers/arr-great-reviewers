@@ -23,6 +23,20 @@ _MONTHS = (
     "Dec",
 )
 
+_DOUBLED_NAME_RE = re.compile(r"^\s*(.+?)\s*,\s*\1\s*$")
+
+
+def canonical_institution(name: str) -> str:
+    """Display name for an institution as written in ARR's data.
+
+    Some profiles list the same affiliation twice ("Tsinghua University, Tsinghua
+    University"), which split one institution into two rows. Only exact repeats are
+    collapsed: "X, Y" stays as is, since Y is often the parent university
+    ("Department of Computer Science, University of Washington").
+    """
+    match = _DOUBLED_NAME_RE.match(name or "")
+    return match.group(1) if match else (name or "")
+
 
 def format_cycle(cycle: str) -> str:
     """Human-readable ARR cycle label: '2024_12' or '2024-12' -> 'Dec 2024'."""
@@ -221,7 +235,7 @@ def build_reviewer_database() -> Dict[str, Dict]:
             if openreview_id not in reviewer_db:
                 reviewer_db[openreview_id] = {
                     "name": name,
-                    "institution": institution,
+                    "institution": canonical_institution(institution),
                     "openreview_id": openreview_id,
                     "unique_id": openreview_id,
                     "total_recognized": 0,
@@ -234,13 +248,19 @@ def build_reviewer_database() -> Dict[str, Dict]:
                 # Update name and institution to most recent version
                 # (cycles are processed in chronological order)
                 reviewer_db[openreview_id]["name"] = name
-                reviewer_db[openreview_id]["institution"] = institution
+                reviewer_db[openreview_id]["institution"] = canonical_institution(
+                    institution
+                )
 
             # Every name|institution pair this reviewer appeared under, so per-cycle
             # tables can still link rows that use an older name or affiliation.
             keys = reviewer_db[openreview_id].setdefault("source_keys", [])
-            if f"{name}|{institution}" not in keys:
-                keys.append(f"{name}|{institution}")
+            for key in (
+                f"{name}|{institution}",
+                f"{name}|{canonical_institution(institution)}",
+            ):
+                if key not in keys:
+                    keys.append(key)
 
             # Add cycle-specific data
             reviewer_db[openreview_id]["cycles"][cycle_name] = {
@@ -497,7 +517,7 @@ def process_and_rank_cycle_data(raw_data: list) -> list:
     for reviewer in raw_data:
         processed_reviewer = {
             "name": reviewer.get("name", ""),
-            "institution": reviewer.get("institution", ""),
+            "institution": canonical_institution(reviewer.get("institution", "")),
             "reviewed": int(reviewer.get("reviewed", 0)),
             "recognized": int(reviewer.get("recognized", 0)),
             "percentage": float(reviewer.get("percentage", 0.0)),
