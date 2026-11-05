@@ -90,7 +90,8 @@ def build_institution_database() -> Dict[str, Dict]:
     # Load cycle data for institution-specific cycle performance
     raw_data_dir = Path("data/raw")
     cycle_data = {}
-    for cycle_file in raw_data_dir.glob("*.json"):
+    # Sorted, so each institution's cycles are in chronological order
+    for cycle_file in sorted(raw_data_dir.glob("*.json")):
         cycle_name = cycle_file.stem
         with open(cycle_file, "r", encoding="utf-8") as f:
             cycle_data[cycle_name] = json.load(f)
@@ -162,7 +163,9 @@ def build_institution_database() -> Dict[str, Dict]:
                 key=lambda x: (x["recognized"], x["percentage"]), reverse=True
             )
 
-            cycles[cycle_name] = cycle_inst_data
+            # Only cycles where this institution had reviewers
+            if cycle_inst_data["reviewer_count"]:
+                cycles[cycle_name] = cycle_inst_data
 
         # Top reviewers from this institution (across all cycles)
         top_reviewers = sorted(
