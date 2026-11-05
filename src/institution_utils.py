@@ -8,23 +8,19 @@ from typing import Dict
 from src.reviewer_utils import canonical_institution, format_cycle
 
 
-def institution_name_to_url_safe_id(institution_name: str) -> str:
-    """
-    Convert institution name to URL-safe identifier.
-
-    Args:
-        institution_name: The institution's full name
-
-    Returns:
-        URL-safe identifier for the institution
-    """
-    # Doubled names ("X, X") share X's page
-    institution_name = canonical_institution(institution_name)
-    # Convert to lowercase and replace spaces/special characters with hyphens
+def slugify_institution(institution_name: str) -> str:
+    """URL slug of one exact spelling (the historical page-ID scheme)."""
     url_safe = re.sub(r"[^a-zA-Z0-9]+", "-", institution_name.lower())
-    # Remove leading/trailing hyphens and multiple consecutive hyphens
-    url_safe = re.sub(r"-+", "-", url_safe).strip("-")
-    return url_safe
+    return re.sub(r"-+", "-", url_safe).strip("-")
+
+
+def institution_name_to_url_safe_id(institution_name: str) -> str:
+    """Page ID for an institution, the same for every spelling of it.
+
+    The slug of the group's display name, so institutions that were never merged keep
+    the URL they always had.
+    """
+    return slugify_institution(canonical_institution(institution_name))
 
 
 def load_institution_mappings() -> Dict[str, str]:

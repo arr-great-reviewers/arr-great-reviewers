@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import multiprocessing as mp
+import re
 import shutil
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -199,6 +200,47 @@ def generate_pages_parallel(
     return successful
 
 
+def write_institution_redirects(institution_db: dict) -> int:
+    """Keep old institution URLs working after spellings were merged.
+
+    Every spelling in ARR's data used to get its own page at the slug of that exact
+    spelling (or of its de-duplicated "X, X" form). When it now belongs to a merged
+    institution, its old URL forwards to the merged page.
+    """
+    from src.institution_utils import (
+        institution_name_to_url_safe_id,
+        slugify_institution,
+    )
+
+    targets: Dict[str, str] = {}
+    for cycle_file in Path("data/raw").glob("*.json"):
+        for row in json.loads(cycle_file.read_text(encoding="utf-8")):
+            raw = row.get("institution", "")
+            new_id = institution_name_to_url_safe_id(raw)
+            if new_id not in institution_db:
+                continue
+            doubled = re.match(r"^\s*(.+?)\s*,\s*\1\s*$", raw)
+            for old_id in {
+                slugify_institution(raw),
+                slugify_institution(doubled.group(1) if doubled else raw),
+            }:
+                if old_id and old_id != new_id and old_id not in institution_db:
+                    targets.setdefault(old_id, new_id)
+    for old_id, new_id in targets.items():
+        url = f"/institution/{new_id}/"
+        out = SITE / "institution" / old_id / "index.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            f'<meta http-equiv="refresh" content="0; url={url}">'
+            f'<link rel="canonical" href="{BASE_URL}{url}">'
+            f'<meta name="robots" content="noindex"><title>Moved</title></head>'
+            f'<body><p>This page moved to <a href="{url}">{url}</a>.</p></body></html>',
+            encoding="utf-8",
+        )
+    return len(targets)
+
+
 def generate_sitemap(
     cycles: list[str],
     reviewer_db: dict,
@@ -305,6 +347,13 @@ def build_site(
         shutil.copy2(
             institution_mappings_source, SITE / "data" / "institution_mappings.json"
         )
+
+    # Old URLs of institution spellings that are now merged
+    if institution_db_source.exists():
+        moved = write_institution_redirects(
+            json.loads(institution_db_source.read_text(encoding="utf-8"))
+        )
+        print(f"Wrote {moved} institution redirects")
 
     # Copy OpenReview profile mapping for JavaScript lookup, minus opted-out reviewers
     # and without the real affiliation of anyone who asked to hide it

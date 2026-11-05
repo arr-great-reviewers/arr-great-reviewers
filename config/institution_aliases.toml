@@ -1,0 +1,42 @@
+# Spellings of an institution that ARR's data lists separately but that are the same
+# place. Each entry maps a spelling to the name it should be counted under. Matching
+# ignores case, punctuation, accents and a leading "The", so one entry covers those
+# variants too.
+#
+# Deliberately NOT merged: separate campuses (Harbin Institute of Technology (Shenzhen),
+# HKUST (Guangzhou), Aalborg University (Copenhagen)), a different university with a
+# similar name (Northeastern University (China)), and regional labs (Microsoft Research
+# India, IBM Research India, Meta AI (FAIR)).
+
+[aliases]
+# Country added after the name
+"Microsoft, USA" = "Microsoft"
+"Nara Institute of Science and Technology, Japan" = "Nara Institute of Science and Technology"
+"University of California Berkeley, USA" = "University of California, Berkeley"
+"Soochow University, China" = "Soochow University"
+"University of Oxford, UK" = "University of Oxford"
+"Instituto de Telecomunicações, Portugal" = "Instituto de Telecomunicações"
+"University of Turin, Italy" = "University of Turin"
+"Indian Institute of Technology Kharagpur, India" = "Indian Institute of Technology Kharagpur"
+"Jilin University, China" = "Jilin University"
+"Samsung R&D Institute Bangalore, India" = "Samsung R&D Institute Bangalore"
+"University of Galway, Ireland" = "University of Galway"
+
+# Abbreviation added after the name
+"University of Technology Sydney (UTS)" = "University of Technology Sydney"
+"National Institute of Information and Communications Technology (NICT)" = "National Institute of Information and Communications Technology"
+"Institute of Automation, Chinese Academy of Sciences (CASIA)" = "Institute of Automation, Chinese Academy of Sciences"
+"Beijing Academy of Artificial Intelligence (BAAI)" = "Beijing Academy of Artificial Intelligence"
+"Vidyasirimedhi Institute of Science and Technology (VISTEC)" = "Vidyasirimedhi Institute of Science and Technology"
+"King Abdullah University of Science and Technology (KAUST)" = "King Abdullah University of Science and Technology"
+"Swiss Federal Institute of Technology Lausanne (EPFL)" = "Swiss Federal Institute of Technology Lausanne"
+
+# Same name twice, in two languages or word orders
+"University of Stuttgart, Universität Stuttgart" = "University of Stuttgart"
+"The Hong Kong Polytechnic University, Hong Kong Polytechnic University" = "Hong Kong Polytechnic University"
+"the University of Hong Kong, University of Hong Kong" = "University of Hong Kong"
+"Chinese University of Hong Kong, The Chinese University of Hong Kong" = "Chinese University of Hong Kong"
+"The University of Tokyo, Tokyo University" = "University of Tokyo"
+"Universita' di Pisa, University of Pisa" = "University of Pisa"
+"Edinburgh University, University of Edinburgh" = "University of Edinburgh"
+"University of the Chinese Academy of Sciences" = "University of Chinese Academy of Sciences"

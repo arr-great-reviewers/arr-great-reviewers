@@ -169,6 +169,23 @@ Maps ARR cycle names to their JSON data source URLs from the ACL Rolling Review 
 
 **Usage:** The `src/arr_dl.py` module reads this file to download data for each configured ARR cycle. Add new cycles by adding entries with the cycle name as key and the corresponding stats URL as value.
 
+### `config/institution_aliases.toml`
+
+ARR's data spells some institutions several ways. Spellings that differ only in case,
+punctuation, accents, a leading "The", or an exact repeat ("X, X") are merged
+automatically. Other spellings of the same place ("Microsoft, USA", "University of
+Stuttgart, Universität Stuttgart") are listed here by hand:
+
+```toml
+[aliases]
+"Microsoft, USA" = "Microsoft"
+```
+
+Each merged institution is shown under its spelling with the most Great Reviews, and
+its page keeps that spelling's URL. Old URLs of the absorbed spellings redirect to it.
+Separate campuses and similarly named but different institutions are deliberately not
+listed (see the comments in the file).
+
 ### `config/manual_openreview_mappings.toml`
 
 Manual mappings of reviewer names to OpenReview profile IDs for cases where automatic matching fails or needs override.

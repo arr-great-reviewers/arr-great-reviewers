@@ -4,6 +4,7 @@ import json
 import os
 import re
 import tomllib
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, FrozenSet, Optional
@@ -24,18 +25,78 @@ _MONTHS = (
 )
 
 _DOUBLED_NAME_RE = re.compile(r"^\s*(.+?)\s*,\s*\1\s*$")
+_EDGE_PUNCT_RE = re.compile(r"^[\s,;.\-–]+|[\s,;\-–]+$")
+
+
+def _clean_institution(name: str) -> str:
+    """Tidy one spelling: whitespace, stray edge punctuation, and exact repeats
+    ("Tsinghua University, Tsinghua University")."""
+    name = _EDGE_PUNCT_RE.sub("", " ".join((name or "").split()))
+    match = _DOUBLED_NAME_RE.match(name)
+    return match.group(1) if match else name
+
+
+def institution_key(name: str) -> str:
+    """Comparison key: ignores case, punctuation, accents and a leading "The"."""
+    folded = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    folded = re.sub(r"[^a-z0-9]+", " ", folded.lower()).strip()
+    return re.sub(r"^the ", "", folded)
+
+
+@lru_cache(maxsize=1)
+def _institution_aliases() -> Dict[str, str]:
+    """Hand-checked spellings of the same place (config/institution_aliases.toml)."""
+    path = Path("config/institution_aliases.toml")
+    if not path.exists():
+        return {}
+    aliases = tomllib.loads(path.read_text(encoding="utf-8")).get("aliases", {})
+    return {institution_key(k): v for k, v in aliases.items()}
+
+
+def _resolve_institution(name: str) -> str:
+    cleaned = _clean_institution(name)
+    alias = _institution_aliases().get(institution_key(cleaned))
+    return _clean_institution(alias) if alias else cleaned
+
+
+@lru_cache(maxsize=1)
+def _display_name_by_key() -> Dict[str, str]:
+    """For every group of spellings, the one with the most Great Reviews in ARR's data
+    (ties: more rows, then without a leading "The", then alphabetical)."""
+    tallies: Dict[str, Dict[str, list]] = {}
+    for cycle_file in Path("data/raw").glob("*.json"):
+        with open(cycle_file, "r", encoding="utf-8") as f:
+            for row in json.load(f):
+                spelling = _resolve_institution(row.get("institution", ""))
+                tally = tallies.setdefault(institution_key(spelling), {}).setdefault(
+                    spelling, [0, 0]
+                )
+                tally[0] += int(row.get("recognized", 0) or 0)
+                tally[1] += 1
+    return {
+        key: max(
+            spellings.items(),
+            key=lambda kv: (
+                kv[1][0],
+                kv[1][1],
+                not kv[0].lower().startswith("the "),
+                kv[0],
+            ),
+        )[0]
+        for key, spellings in tallies.items()
+    }
 
 
 def canonical_institution(name: str) -> str:
-    """Display name for an institution as written in ARR's data.
+    """The single display name for an institution, however ARR's data spells it.
 
-    Some profiles list the same affiliation twice ("Tsinghua University, Tsinghua
-    University"), which split one institution into two rows. Only exact repeats are
-    collapsed: "X, Y" stays as is, since Y is often the parent university
+    Spellings that differ only in case, punctuation, accents or a leading "The", plus
+    the hand-checked aliases, share one name: the spelling with the most Great Reviews.
+    "X, Y" is otherwise left alone, since Y is often a parent university
     ("Department of Computer Science, University of Washington").
     """
-    match = _DOUBLED_NAME_RE.match(name or "")
-    return match.group(1) if match else (name or "")
+    resolved = _resolve_institution(name)
+    return _display_name_by_key().get(institution_key(resolved), resolved)
 
 
 def format_cycle(cycle: str) -> str:
