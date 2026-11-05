@@ -526,7 +526,7 @@ def calculate_achievements(reviewer_db: Dict[str, Dict]) -> Dict[str, Dict]:
             # Resolve through the OpenReview mapping so reviewers who changed
             # affiliation still get badges for their earlier cycles.
             unique_id = get_reviewer_openreview_id(
-                reviewer_data["name"], reviewer_data["institution"], mappings
+                reviewer_data["name"], reviewer_data["source_institution"], mappings
             )
             if unique_id not in reviewer_db:
                 continue
@@ -626,6 +626,8 @@ def process_and_rank_cycle_data(raw_data: list) -> list:
         processed_reviewer = {
             "name": reviewer.get("name", ""),
             "institution": canonical_institution(reviewer.get("institution", "")),
+            # ARR's own spelling, needed for the OpenReview lookup; not published
+            "source_institution": reviewer.get("institution", ""),
             "reviewed": int(reviewer.get("reviewed", 0)),
             "recognized": int(reviewer.get("recognized", 0)),
             "percentage": float(reviewer.get("percentage", 0.0)),
@@ -678,7 +680,15 @@ def generate_cycle_reviewer_files() -> None:
         # Save to cycle-specific file
         output_file = metrics_dir / f"reviewers_{cycle_name}.json"
         with output_file.open("w", encoding="utf-8") as f:
-            json.dump(processed_data, f, ensure_ascii=False, indent=2)
+            json.dump(
+                [
+                    {k: v for k, v in row.items() if k != "source_institution"}
+                    for row in processed_data
+                ],
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
 
         print(f"  Generated {output_file} with {len(processed_data)} reviewers")
 
